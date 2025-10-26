@@ -61,7 +61,7 @@ SHOW_PARTIAL_RESULTS = False  # 是否显示识别中的部分结果（ongoing�
 
 mic = None
 stream = None
-executor = ThreadPoolExecutor(max_workers=2)
+executor = ThreadPoolExecutor(max_workers=8)
 stop_event = asyncio.Event()
 recognition_active = False  # 标记识别是否正在运行
 recognition_instance = None  # 全局识别实例
@@ -119,10 +119,10 @@ class Callback(RecognitionCallback):
     def on_error(self, message) -> None:
         logger.error('RecognitionCallback task_id: %s', message.request_id)
         logger.error('RecognitionCallback error: %s', message.message)
-        if self.loop:
-            self.loop.call_soon_threadsafe(stop_event.set)
-        else:
-            stop_event.set()
+        # if self.loop:
+        #     self.loop.call_soon_threadsafe(stop_event.set)
+        # else:
+        #     stop_event.set()
 
     def on_event(self, result: RecognitionResult) -> None:
         sentence = result.get_sentence()
@@ -258,8 +258,11 @@ async def read_audio_data():
 async def send_audio_frame_async(recognition, data):
     """异步发送音频帧"""
     loop = asyncio.get_event_loop()
-    await loop.run_in_executor(executor, recognition.send_audio_frame, data)
-
+    try:
+        await loop.run_in_executor(executor, recognition.send_audio_frame, data)
+    except Exception as e:
+        pass
+    
 
 async def audio_capture_task(recognition):
     """异步音频捕获任务"""
@@ -315,8 +318,12 @@ async def stop_recognition_async(recognition):
     await asyncio.sleep(0.1)
     
     # 停止识别
-    loop = asyncio.get_event_loop()
-    await loop.run_in_executor(executor, recognition.stop)
+    try:
+        loop = asyncio.get_event_loop()
+        await loop.run_in_executor(executor, recognition.stop)
+    except Exception as e:
+        pass
+    
     
 
 async def start_recognition_async(recognition):
@@ -326,8 +333,11 @@ async def start_recognition_async(recognition):
         print('Recognition already active.')
         return  # 已经在运行中
     
-    loop = asyncio.get_event_loop()
-    await loop.run_in_executor(executor, recognition.start)
+    try:
+        loop = asyncio.get_event_loop()
+        await loop.run_in_executor(executor, recognition.start)
+    except Exception as e:
+        pass
 
     recognition_active = True
 
