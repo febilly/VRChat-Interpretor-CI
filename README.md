@@ -6,6 +6,7 @@
 - 使用 DeepL 进行翻译
     - 可以切换为开箱即用的谷歌翻译（当然你的网得行）
 - 将结果通过 OSC 发送至游戏
+- ~~其实就是把一堆 API 粘在了一起~~
 
 有一些特殊功能，请看下文
 
@@ -67,7 +68,7 @@
 
 ## 快速开始
 
-懒得自己写了，下面的东西让AI写了，我看了下，基本上写的没毛病，就凑合看一下吧，抱歉抱歉
+懒得自己写了，下面的东西让 AI 写了，我看了下，基本上写的没毛病，就凑合看一下吧，抱歉抱歉
 
 ### 1. 克隆项目
 
@@ -98,7 +99,7 @@ pip install -r requirements.txt
 # 必需：阿里云百炼 API Key
 DASHSCOPE_API_KEY=your_dashscope_api_key_here
 
-# 可选：DeepL API Key（如果使用 DeepL 翻译，默认值）
+# 可选：DeepL API Key（如果使用默认的 DeepL 翻译）
 DEEPL_API_KEY=your_deepl_api_key_here
 ```
 
@@ -115,8 +116,9 @@ python funasr.py
 
 ## 配置说明
 
+在 `funasr.py` 文件顶部有详细的配置选项
+
 <details>
-在 `funasr.py` 文件顶部有详细的配置选项：
 
 ### 翻译语言配置
 
@@ -209,7 +211,9 @@ SHOW_PARTIAL_RESULTS = False  # 是否显示部分识别结果
 ## 热词配置
 
 热词功能可以显著提高特定词汇的识别准确度，特别适合专业术语、人名、地名等。
-以及某些VRChat的 _特殊_ 词汇
+以及某些 VRChat 的 _特殊_ 词汇
+
+<details>
 
 ### 热词文件结构
 
@@ -255,6 +259,8 @@ STT/
    ENABLED_LANGUAGES = ['zh-cn', 'en']  
    # 可添加更多：['zh-cn', 'en', 'ja', 'ko']
    ```
+
+</details>
 
 ## VRChat OSC 配置
 
