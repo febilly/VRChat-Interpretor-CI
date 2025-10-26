@@ -54,7 +54,7 @@ ENABLE_HOT_WORDS = True  # 是否启用热词功能
 
 # 显示配置
 SHOW_PARTIAL_RESULTS = False  # 是否显示识别中的部分结果（ongoing）
-                             # True: 显示部分识别结果到聊天框
+                             # True: 显示部分识别结果到聊天框（可能覆盖掉之前的翻译结果）
                              # False: 只显示完整识别结果
                              
 # ================================
