@@ -1,10 +1,10 @@
-# VRChat 翻译器 交替传译版
+# VRChat 翻译器 非流式输出版
 
-一个为VRChat做的语音翻译器（翻译你自己的声音）
+更适合中国 [~~计科~~](#局限性) 宝宝体质的 VRChat 语音翻译器（翻译你自己的声音）
 
 - 使用阿里的 Fun-ASR 进行语音转文本
 - 使用 DeepL 进行翻译
-    - 可以切换为开箱即用的谷歌翻译
+    - 可以切换为开箱即用的谷歌翻译（当然你的网得行）
 - 将结果通过 OSC 发送至游戏
 
 有一些特殊功能，请看下文
@@ -115,6 +115,7 @@ python funasr.py
 
 ## 配置说明
 
+<details>
 在 `funasr.py` 文件顶部有详细的配置选项：
 
 ### 翻译语言配置
@@ -203,6 +204,7 @@ SHOW_PARTIAL_RESULTS = False  # 是否显示部分识别结果
 # True: 识别过程中实时显示部分结果（可能覆盖掉之前的翻译结果）
 # False: 只显示完整句子的识别结果（推荐）
 ```
+</details>
 
 ## 热词配置
 
@@ -275,3 +277,11 @@ STT/
 - 确认 VRChat OSC 已启用
 - 如果你修改了 OSC 端口，请在 `funasr.py` 中同步修改 `OSC_PORT` 配置
 
+## 附录
+
+- 要翻译别人的声音的话建议用 [soniox](https://console.soniox.com/org/e784abf7-3ab5-4127-8823-ecfc18f68b90/projects/2b220fdd-f158-4b7a-9b12-447947b5098a/playground/speech-to-text/)，用它的网页端 Playground 就行，配合 Powertoys 的窗口裁剪器
+- 也可以试试 [LiveCaptions Translator](https://github.com/SakiRinn/LiveCaptions-Translator)
+
+## 致谢
+- 本项目部分基于阿里给的 Fun-ASR 示例代码
+- 快速的 Google Translate API 来自 https://github.com/SakiRinn/LiveCaptions-Translator
