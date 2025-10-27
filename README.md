@@ -287,7 +287,8 @@ STT/
 ## 附录
 
 - 要翻译别人的声音的话建议用 [soniox](https://console.soniox.com/org/e784abf7-3ab5-4127-8823-ecfc18f68b90/projects/2b220fdd-f158-4b7a-9b12-447947b5098a/playground/speech-to-text/)，用它的网页端 Playground 就行，配合 Powertoys 的窗口裁剪器
-- 也可以试试 [LiveCaptions Translator](https://github.com/SakiRinn/LiveCaptions-Translator)
+    - 也可以试试 [LiveCaptions Translator](https://github.com/SakiRinn/LiveCaptions-Translator)
+- 我还没太试过国内其他家的识别服务效果怎样，如果有更好的（并且有不少免费额度的）请告诉我谢谢
 
 ## 致谢
 - 本项目部分基于阿里给的 Fun-ASR 示例代码
