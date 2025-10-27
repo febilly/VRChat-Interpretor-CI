@@ -143,7 +143,7 @@ class CJKEDetector(BaseLanguageDetector):
         
         # 判断主要语言
         # 日语优先
-        if japanese_ratio > 0.3:
+        if japanese_ratio >= 0.2:
             # 日语中也可能包含汉字
             confidence = japanese_ratio + chinese_ratio
             return {
@@ -152,21 +152,21 @@ class CJKEDetector(BaseLanguageDetector):
             }
         
         # 韩语判定
-        if korean_ratio > 0.3:
+        if korean_ratio >= 0.3:
             return {
                 'language': 'ko',
                 'confidence': korean_ratio
             }
         
         # 中文判定
-        if chinese_ratio > 0.3:
+        if chinese_ratio >= 0.3:
             return {
                 'language': 'zh-cn',
                 'confidence': chinese_ratio
             }
         
         # 英语判定
-        if english_ratio > 0.5:
+        if english_ratio >= 0.5:
             return {
                 'language': 'en',
                 'confidence': english_ratio
