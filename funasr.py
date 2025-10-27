@@ -473,7 +473,6 @@ async def main():
         print("按 'Ctrl+C' 退出程序")
         print("=" * 60)
         # 立即启动识别
-        recognition_active = True
         await start_recognition_async(recognition_instance)
         print('[ASR] 语音识别已启动')
 
