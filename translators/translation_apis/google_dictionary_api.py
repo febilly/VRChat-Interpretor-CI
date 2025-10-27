@@ -22,6 +22,23 @@ class GoogleDictionaryAPI(BaseTranslationAPI):
         self.api_endpoint = "https://dictionaryextension-pa.googleapis.com/v1/dictionaryExtensionData"
         self.strategy = "2"
         self.timeout = 8  # 超时时间（秒）
+        
+        # 创建长连接会话
+        self._session_timeout = aiohttp.ClientTimeout(total=self.timeout)
+        self._session = None
+        self._loop = None
+    
+    async def _get_session(self):
+        """获取或创建 HTTP 长连接会话"""
+        if self._session is None or self._session.closed:
+            self._session = aiohttp.ClientSession(timeout=self._session_timeout)
+        return self._session
+    
+    async def close(self):
+        """关闭 HTTP 长连接会话"""
+        if self._session and not self._session.closed:
+            await self._session.close()
+        self._session = None
     
     async def _translate_async(self, text: str, source_language: str, target_language: str) -> str:
         """
@@ -51,31 +68,46 @@ class GoogleDictionaryAPI(BaseTranslationAPI):
         }
         
         try:
-            # 创建超时配置
-            timeout = aiohttp.ClientTimeout(total=self.timeout)
+            # 获取长连接会话
+            session = await self._get_session()
             
-            # 发送请求
-            async with aiohttp.ClientSession(timeout=timeout) as session:
-                async with session.get(url, headers=headers) as response:
-                    if response.status == 200:
-                        response_body = await response.text()
-                        
-                        # 解析 JSON 响应
-                        data = json.loads(response_body)
-                        
-                        # 提取翻译结果
-                        if 'translateResponse' in data:
-                            translated_text = data['translateResponse'].get('translateText', '')
-                            return translated_text
-                        else:
-                            return "[ERROR] Translation Failed: Unexpected API response format"
+            # 发送请求（使用长连接）
+            async with session.get(url, headers=headers) as response:
+                if response.status == 200:
+                    response_body = await response.text()
+                    
+                    # 解析 JSON 响应
+                    data = json.loads(response_body)
+                    
+                    # 提取翻译结果
+                    if 'translateResponse' in data:
+                        translated_text = data['translateResponse'].get('translateText', '')
+                        return translated_text
                     else:
-                        return f"[ERROR] HTTP {response.status}: {await response.text()}"
+                        return "[ERROR] Translation Failed: Unexpected API response format"
+                else:
+                    return f"[ERROR] HTTP {response.status}: {await response.text()}"
         
         except asyncio.TimeoutError:
             return f"[ERROR] Translation timeout (>{self.timeout}s)"
         except Exception as e:
             return f"[ERROR] {str(e)}"
+    
+    def __del__(self):
+        """析构函数，确保资源清理"""
+        try:
+            if self._loop and not self._loop.is_closed():
+                if self._loop.is_running():
+                    # 如果事件循环正在运行，使用 create_task 替代
+                    self._loop.create_task(self.close())
+                else:
+                    # 否则直接运行关闭任务
+                    self._loop.run_until_complete(self.close())
+                self._loop.close()
+                self._loop = None
+        except Exception:
+            # 忽略清理过程中的错误
+            pass
     
     def translate(self, text: str, source_language: str = 'auto', 
                   target_language: str = 'zh-CN', context: Optional[str] = None) -> str:
@@ -104,8 +136,10 @@ class GoogleDictionaryAPI(BaseTranslationAPI):
         try:
             loop = asyncio.get_running_loop()
         except RuntimeError:
-            # 没有运行中的事件循环，创建新的
-            loop = asyncio.new_event_loop()
+            # 没有运行中的事件循环，复用或创建新的
+            if self._loop is None or self._loop.is_closed():
+                self._loop = asyncio.new_event_loop()
+            loop = self._loop
             asyncio.set_event_loop(loop)
         
         # 同步执行异步翻译
