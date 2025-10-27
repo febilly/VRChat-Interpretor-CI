@@ -174,7 +174,7 @@ class Callback(RecognitionCallback):
                     context_prefix=CONTEXT_PREFIX,
                 )
                 print(f'译文：{translated_text}')
-                display_text = f"[{actual_target}] {translated_text}"
+                display_text = f"[{normalized_source}→{actual_target}] {translated_text}"
                     
             
             if display_text is None:
