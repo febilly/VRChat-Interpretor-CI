@@ -43,6 +43,10 @@ class DeepLAPI(BaseTranslationAPI):
         
         # 创建 DeepL 客户端（官方库会自动处理 Free/Pro 端点）
         self.client = deepl.DeepLClient(auth_key)
+                
+        # 提前进行一次翻译，以建立长连接
+        self.translate("你好", source_language="auto", target_language="en")
+
     
     def translate(self, text: str, source_language: str = 'auto', 
                   target_language: str = 'zh-CN', context: Optional[str] = None) -> str:
