@@ -14,6 +14,9 @@ from osc_manager import osc_manager
 from translators.context_aware_translator import ContextAwareTranslator
 from hot_words_manager import HotWordsManager
 
+from translators.translation_apis.google_dictionary_api import GoogleDictionaryAPI as BackwardsTranslationAPI
+
+
 # 加载 .env 文件中的环境变量
 load_dotenv()
 
@@ -77,6 +80,14 @@ translator = ContextAwareTranslator(
     context_aware=True
 )
 
+backwards_translation_api = BackwardsTranslationAPI()  # 反向翻译 API 实例
+backwards_translator = ContextAwareTranslator(
+    translation_api=backwards_translation_api, 
+    max_context_size=6,
+    target_language="en",  # 实际进行翻译的时候不会使用这个值
+    context_aware=True
+)  # 反向翻译 API 实例
+
 language_detector = LanguageDetector()  # 语言检测器实例
 
 # Set recording parameters
@@ -99,6 +110,31 @@ def init_dashscope_api_key():
             'DASHSCOPE_API_KEY']  # load API-key from environment variable DASHSCOPE_API_KEY
     else:
         dashscope.api_key = '<your-dashscope-api-key>'  # set API-key manually
+
+
+def validate_translation(translated_text, source_language, target_language):
+    """
+    对翻译结果进行反向翻译，从目标语言翻译回原始语言
+    
+    Args:
+        translated_text: 已翻译的文本
+        source_language: **本方法进行的翻译的** 源语言代码
+        target_language: **本方法进行的翻译的** 目标语言代码
+    
+    Returns:
+        反向翻译后的文本
+    """
+    try:
+        backwards_translated = backwards_translator.translate(
+            translated_text,
+            source_language=source_language,
+            target_language=target_language
+        )
+        print(f'反向翻译：{backwards_translated}')
+        return backwards_translated
+    except Exception as e:
+        print(f'反向翻译失败: {e}')
+        return None
 
 
 # Real-time speech recognition callback
@@ -126,6 +162,9 @@ class Callback(RecognitionCallback):
 
     def on_event(self, result: RecognitionResult) -> None:
         sentence = result.get_sentence()
+        
+        is_translated = False
+        
         if sentence and 'text' in sentence:
             text = sentence['text']
             is_ongoing = not RecognitionResult.is_sentence_end(sentence)
@@ -173,7 +212,9 @@ class Callback(RecognitionCallback):
                     target_language=actual_target,
                     context_prefix=CONTEXT_PREFIX,
                 )
+                is_translated = True
                 print(f'译文：{translated_text}')
+                                
                 display_text = f"[{normalized_source}→{actual_target}] {translated_text}"
                     
             
@@ -197,6 +238,10 @@ class Callback(RecognitionCallback):
                     )
             elif not self.loop:
                 print('[OSC] Warning: Event loop not set, cannot send OSC message.')
+
+            if is_translated:
+                # 反向翻译
+                validate_translation(translated_text, actual_target, normalized_source)
 
 
 async def init_audio_stream():
