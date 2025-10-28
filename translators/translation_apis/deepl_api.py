@@ -15,7 +15,7 @@ except ImportError:
         "pip install --upgrade deepl"
     )
 
-FORMALITY = "prefer_less"
+FORMALITY = "prefer_more"
 
 class DeepLAPI(BaseTranslationAPI):
     """DeepL 翻译 API 封装（使用官方库）"""
