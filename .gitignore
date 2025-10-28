@@ -15,4 +15,6 @@ models/lid.176.bin
 
 *.zip
 hot_words_private/*.txt
-temp
+temp/
+
+tests/
