@@ -37,9 +37,10 @@ from language_detectors.cjke_detector import CJKEDetector as LanguageDetector  #
 # from language_detectors.enzh_detector import EnZhDetector as LanguageDetector  # 专用中英语言检测器
 
 # 翻译API配置
-# from translators.translation_apis.google_web_api import GoogleWebAPI as TranslationAPI  # 标准的 Google Translate API，开箱即用
+# from translators.translation_apis.google_web_api import GoogleWebAPI as TranslationAPI  # 标准的 Google Translate API，开箱即用，如果下面这个能用，就不推荐用这个
 # from translators.translation_apis.google_dictionary_api import GoogleDictionaryAPI as TranslationAPI  # 更快的 Google Translate API，开箱即用
 from translators.translation_apis.deepl_api import DeepLAPI as TranslationAPI  # DeepL API，需配置 DEEPL_API_KEY 环境变量
+# from translators.translation_apis.openrouter_api import OpenRouterAPI as TranslationAPI  # OpenRouter API，需配置 OPENROUTER_API_KEY 环境变量
 
 # 翻译上下文
 CONTEXT_PREFIX = "This is an audio transcription of a conversation within the online multiplayer social game VRChat:"  # 上下文前缀文本
