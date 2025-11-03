@@ -47,3 +47,5 @@ rate limit
 Google Translate
 DeepL
 VAD
+Shader
+ASR
