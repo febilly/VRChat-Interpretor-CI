@@ -7,6 +7,7 @@ from concurrent.futures import ThreadPoolExecutor
 from typing import Optional
 
 import pyaudio
+import keyboard  # for global hotkey support
 
 from dotenv import load_dotenv
 from osc_manager import osc_manager
@@ -93,6 +94,21 @@ VAD_SILENCE_DURATION_MS = 800  # VAD静音持续时间（毫秒），检测到�
 SHOW_PARTIAL_RESULTS = False  # 是否显示识别中的部分结果（ongoing）
                              # True: 显示部分识别结果到聊天框（可能覆盖掉之前的翻译结果）
                              # False: 只显示完整识别结果
+
+# 快捷键配置
+ENABLE_HOTKEYS = True  # 是否启用全局快捷键
+                      # True: 启用快捷键功能（需要管理员权限）
+                      # False: 禁用快捷键功能
+
+HOTKEY_TOGGLE_RECOGNITION = 'ctrl+shift+t'  # 快速开关翻译器的快捷键
+                                            # 默认: Ctrl+Shift+T
+
+HOTKEY_SWITCH_LANGUAGE = 'ctrl+shift+l'  # 切换目标语言的快捷键
+                                         # 默认: Ctrl+Shift+L
+
+# 可切换的目标语言列表（按顺序循环切换）
+LANGUAGE_CYCLE = ['en', 'zh-CN', 'ja', 'ko']  # 英语、简体中文、日语、韩语
+                                               # 可根据需要修改顺序和语言
                              
 # ================================
 
@@ -107,6 +123,13 @@ recognition_instance: Optional[SpeechRecognizer] = None  # 全局识别实例
 mute_delay_task = None  # 延迟停止任务
 CURRENT_ASR_BACKEND = ASR_BACKEND
 vocabulary_id = None  # 热词表 ID
+
+# 初始化当前语言索引（基于 TARGET_LANGUAGE）
+current_language_index = 0
+if TARGET_LANGUAGE in LANGUAGE_CYCLE:
+    current_language_index = LANGUAGE_CYCLE.index(TARGET_LANGUAGE)
+
+hotkey_toggle_enabled = False  # 标记快捷键切换是否已启用
 
 # ============ 初始化服务实例 ============
 translation_api = TranslationAPI()
@@ -447,6 +470,113 @@ async def handle_mute_change(is_muted):
             logger.info(f'[ASR] 语音识别已{start_word}')
 
 
+def on_toggle_recognition_hotkey():
+    """
+    快捷键处理：切换识别开关
+    """
+    global recognition_instance, recognition_active, hotkey_toggle_enabled
+    
+    if recognition_instance is None:
+        print('[Hotkey] 识别实例未初始化，无法切换')
+        return
+    
+    # 创建异步任务切换识别状态
+    loop = asyncio.get_event_loop()
+    
+    if recognition_active and not hotkey_toggle_enabled:
+        # 当前识别开启，切换为关闭
+        print('[Hotkey] 快捷键：关闭翻译器')
+        hotkey_toggle_enabled = True
+        asyncio.run_coroutine_threadsafe(stop_recognition_async(recognition_instance), loop)
+    elif not recognition_active and hotkey_toggle_enabled:
+        # 当前识别关闭，切换为开启
+        print('[Hotkey] 快捷键：开启翻译器')
+        hotkey_toggle_enabled = False
+        asyncio.run_coroutine_threadsafe(start_recognition_async(recognition_instance), loop)
+    elif not recognition_active and not hotkey_toggle_enabled:
+        # 由麦克风控制关闭的状态，不允许通过快捷键开启
+        print('[Hotkey] 快捷键：开启翻译器（已禁用麦克风控制）')
+        hotkey_toggle_enabled = True
+        asyncio.run_coroutine_threadsafe(start_recognition_async(recognition_instance), loop)
+    else:
+        # 由麦克风控制开启的状态，可以通过快捷键关闭
+        print('[Hotkey] 快捷键：关闭翻译器')
+        hotkey_toggle_enabled = True
+        asyncio.run_coroutine_threadsafe(stop_recognition_async(recognition_instance), loop)
+
+
+def on_switch_language_hotkey():
+    """
+    快捷键处理：切换目标语言
+    """
+    global current_language_index, translator
+    
+    # 切换到下一个语言
+    current_language_index = (current_language_index + 1) % len(LANGUAGE_CYCLE)
+    new_language = LANGUAGE_CYCLE[current_language_index]
+    
+    # 更新translator的目标语言
+    translator.target_language = new_language
+    
+    # 显示语言切换信息
+    language_names = {
+        'en': '英语',
+        'zh-CN': '简体中文',
+        'zh': '简体中文',
+        'ja': '日语',
+        'ko': '韩语',
+        'es': '西班牙语',
+        'fr': '法语',
+        'de': '德语',
+        'ru': '俄语',
+    }
+    language_display = language_names.get(new_language, new_language)
+    print(f'[Hotkey] 目标语言已切换为: {language_display} ({new_language})')
+    
+    # 通过OSC发送通知到VRChat聊天框
+    loop = asyncio.get_event_loop()
+    asyncio.run_coroutine_threadsafe(
+        osc_manager.send_text(f'[系统] 目标语言: {language_display}', ongoing=False),
+        loop
+    )
+
+
+def setup_hotkeys():
+    """
+    设置全局热键
+    """
+    if not ENABLE_HOTKEYS:
+        return
+    
+    try:
+        # 注册切换识别的快捷键
+        keyboard.add_hotkey(HOTKEY_TOGGLE_RECOGNITION, on_toggle_recognition_hotkey)
+        print(f'[Hotkey] 已注册快捷键 {HOTKEY_TOGGLE_RECOGNITION} 用于切换翻译器开关')
+        
+        # 注册切换语言的快捷键
+        keyboard.add_hotkey(HOTKEY_SWITCH_LANGUAGE, on_switch_language_hotkey)
+        print(f'[Hotkey] 已注册快捷键 {HOTKEY_SWITCH_LANGUAGE} 用于切换目标语言')
+        
+        print('[Hotkey] 快捷键功能已启用')
+    except Exception as e:
+        print(f'[Hotkey] 快捷键注册失败: {e}')
+        print('[Hotkey] 将继续运行但不使用快捷键功能')
+
+
+def cleanup_hotkeys():
+    """
+    清理全局热键
+    """
+    if not ENABLE_HOTKEYS:
+        return
+    
+    try:
+        keyboard.unhook_all_hotkeys()
+        print('[Hotkey] 快捷键已清理')
+    except Exception as e:
+        print(f'[Hotkey] 清理快捷键时出错: {e}')
+
+
 async def main():
     """主异步函数"""
     global recognition_instance, recognition_active, vocabulary_id, CURRENT_ASR_BACKEND, recognition_started
@@ -529,6 +659,9 @@ async def main():
     
     # 初始化音频流
     await init_audio_stream()
+    
+    # 设置全局快捷键
+    setup_hotkeys()
 
     signal.signal(signal.SIGINT, signal_handler)
     
@@ -541,12 +674,18 @@ async def main():
         print("等待VRChat静音状态变化...")
         print(f"取消静音(MuteSelf=False)将{resume_hint}语音识别")
         print(f"启用静音(MuteSelf=True)将{stop_hint}语音识别")
+        if ENABLE_HOTKEYS:
+            print(f"快捷键 '{HOTKEY_TOGGLE_RECOGNITION}' 可切换翻译器开关")
+            print(f"快捷键 '{HOTKEY_SWITCH_LANGUAGE}' 可切换目标语言")
         print("按 'Ctrl+C' 退出程序")
         print("=" * 60)
     else:
         print("=" * 60)
         print("[模式] 麦克风控制模式已禁用")
         print("语音识别将立即启动，忽略麦克风开关状态")
+        if ENABLE_HOTKEYS:
+            print(f"快捷键 '{HOTKEY_TOGGLE_RECOGNITION}' 可切换翻译器开关")
+            print(f"快捷键 '{HOTKEY_SWITCH_LANGUAGE}' 可切换目标语言")
         print("按 'Ctrl+C' 退出程序")
         print("=" * 60)
         # 立即启动识别
@@ -592,6 +731,9 @@ async def main():
                 print(f'[Metric] 获取统计信息失败: {e}')
     
     finally:
+        # 清理快捷键
+        cleanup_hotkeys()
+        
         # 清除OSC回调
         osc_manager.clear_mute_callback()
 
