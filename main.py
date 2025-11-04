@@ -127,14 +127,14 @@ vocabulary_id = None  # 热词表 ID
 # 当前使用的目标语言（可通过快捷键动态切换）
 current_target_language = TARGET_LANGUAGE
 
-# 初始化当前语言索引（基于 TARGET_LANGUAGE）
-current_language_index = 0
-if TARGET_LANGUAGE in LANGUAGE_CYCLE:
-    current_language_index = LANGUAGE_CYCLE.index(TARGET_LANGUAGE)
-else:
-    # 如果 TARGET_LANGUAGE 不在列表中，将其添加到列表开头
-    LANGUAGE_CYCLE.insert(0, TARGET_LANGUAGE)
-    current_language_index = 0
+# 初始化可切换的语言列表（如果 TARGET_LANGUAGE 不在其中，则添加）
+# 使用副本以避免修改配置常量
+available_languages = list(LANGUAGE_CYCLE)
+if TARGET_LANGUAGE not in available_languages:
+    available_languages.insert(0, TARGET_LANGUAGE)
+
+# 初始化当前语言索引
+current_language_index = available_languages.index(TARGET_LANGUAGE)
 
 hotkey_toggle_enabled = False  # 标记快捷键切换是否已启用
 main_event_loop = None  # 存储主事件循环引用，用于跨线程调用
@@ -144,7 +144,7 @@ translation_api = TranslationAPI()
 translator = ContextAwareTranslator(
     translation_api=translation_api, 
     max_context_size=6,
-    target_language=TARGET_LANGUAGE,
+    target_language=current_target_language,
     context_aware=True
 )
 
@@ -522,8 +522,8 @@ def on_switch_language_hotkey():
     global current_language_index, current_target_language, translator, main_event_loop
     
     # 切换到下一个语言
-    current_language_index = (current_language_index + 1) % len(LANGUAGE_CYCLE)
-    new_language = LANGUAGE_CYCLE[current_language_index]
+    current_language_index = (current_language_index + 1) % len(available_languages)
+    new_language = available_languages[current_language_index]
     
     # 更新当前目标语言和translator的目标语言
     current_target_language = new_language
