@@ -109,6 +109,19 @@ HOTKEY_SWITCH_LANGUAGE = 'ctrl+shift+l'  # 切换目标语言的快捷键
 # 可切换的目标语言列表（按顺序循环切换）
 LANGUAGE_CYCLE = ['en', 'zh-CN', 'ja', 'ko']  # 英语、简体中文、日语、韩语
                                                # 可根据需要修改顺序和语言
+
+# 语言名称映射（用于显示）
+LANGUAGE_DISPLAY_NAMES = {
+    'en': '英语',
+    'zh-CN': '简体中文',
+    'zh': '简体中文',
+    'ja': '日语',
+    'ko': '韩语',
+    'es': '西班牙语',
+    'fr': '法语',
+    'de': '德语',
+    'ru': '俄语',
+}
                              
 # ================================
 
@@ -530,26 +543,18 @@ def on_switch_language_hotkey():
     translator.target_language = new_language
     
     # 显示语言切换信息
-    language_names = {
-        'en': '英语',
-        'zh-CN': '简体中文',
-        'zh': '简体中文',
-        'ja': '日语',
-        'ko': '韩语',
-        'es': '西班牙语',
-        'fr': '法语',
-        'de': '德语',
-        'ru': '俄语',
-    }
-    language_display = language_names.get(new_language, new_language)
+    language_display = LANGUAGE_DISPLAY_NAMES.get(new_language, new_language)
     print(f'[Hotkey] 目标语言已切换为: {language_display} ({new_language})')
     
     # 通过OSC发送通知到VRChat聊天框
     if main_event_loop is not None:
-        asyncio.run_coroutine_threadsafe(
-            osc_manager.send_text(f'[系统] 目标语言: {language_display}', ongoing=False),
-            main_event_loop
-        )
+        try:
+            asyncio.run_coroutine_threadsafe(
+                osc_manager.send_text(f'[系统] 目标语言: {language_display}', ongoing=False),
+                main_event_loop
+            )
+        except Exception as e:
+            print(f'[Hotkey] 发送语言切换通知失败: {e}')
 
 
 def setup_hotkeys():
