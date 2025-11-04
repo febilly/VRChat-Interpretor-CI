@@ -14,6 +14,19 @@ logger = logging.getLogger(__name__)
 # 定义发送到VRChat聊天框的最大文本长度
 MAX_LENGTH=144
 
+# 句子结束标记（按优先级排序）
+SENTENCE_ENDERS = [
+    '.', '。', '！', '!', '？', '?',  # 强句子结束符
+    '…', '...', '‽',                  # 省略号和特殊符号
+    '，', ',', '；', ';',             # 逗号和分号
+    '։', '؟', '،',                    # 其他语言的标点
+    '।', '॥', '።', '။', '།',        # 印度语系、埃塞俄比亚语、缅甸语、藏语
+    '、', '‚', '٫'                   # 日语顿号、低逗号等
+]
+
+# 文本分割配置
+MIN_SPLIT_RATIO = 0.5  # 在空格处分割时，至少保留的内容比例
+
 class OSCManager:
     """OSC管理器单例类，负责OSC服务器和客户端的管理"""
     
@@ -51,6 +64,7 @@ class OSCManager:
             self._enable_pagination = False  # 是否启用分页功能
             self._page_interval = 3.0  # 分页间隔时间（秒）
             self._pagination_task = None  # 当前正在运行的分页任务
+            self._pagination_lock = asyncio.Lock()  # 分页任务的锁，确保串行化
             
             logger.info("[OSC] OSC管理器已初始化")
     
@@ -162,16 +176,6 @@ class OSCManager:
         if len(text) <= max_length:
             return [text]
         
-        # 句子结束标记（按优先级排序）
-        SENTENCE_ENDERS = [
-            '.', '。', '！', '!', '？', '?',  # 强句子结束符
-            '…', '...', '‽',                  # 省略号和特殊符号
-            '，', ',', '；', ';',             # 逗号和分号
-            '։', '؟', '،',                    # 其他语言的标点
-            '।', '॥', '።', '။', '།',        # 印度语系、埃塞俄比亚语、缅甸语、藏语
-            '、', '‚', '٫'                   # 日语顿号、低逗号等
-        ]
-        
         pages = []
         remaining_text = text
         
@@ -208,7 +212,7 @@ class OSCManager:
                 search_text = remaining_text[:max_length]
                 last_space = search_text.rfind(' ')
                 
-                if last_space > max_length * 0.5:  # 至少保留一半以上内容
+                if last_space > max_length * MIN_SPLIT_RATIO:  # 至少保留一半以上内容
                     split_pos = last_space
                 else:
                     split_pos = max_length
@@ -232,16 +236,6 @@ class OSCManager:
         """
         if len(text) <= max_length:
             return text
-        
-        # 句子结束标记
-        SENTENCE_ENDERS = [
-            '.', '?', '!', ',',           # Common
-            '。', '？', '！', '，',        # CJK
-            '…', '...', '‽',             # Stylistic & Special (includes 3-dot ellipsis)
-            '։', '؟', ';', '،',           # Armenian, Arabic, Greek (as question mark), Arabic comma
-            '।', '॥', '።', '။', '།',    # Indic, Ethiopic, Myanmar, Tibetan
-            '、', '‚', '٫'               # Japanese enumeration comma, low comma, Arabic decimal separator
-        ]
         
         # 当文本超长时，删除最前面的句子而不是截断末尾
         while len(text) > max_length:
@@ -329,16 +323,18 @@ class OSCManager:
         
         # 检查是否需要分页
         if self._enable_pagination and len(text) > MAX_LENGTH and not ongoing:
-            # 取消之前的分页任务（如果存在）
-            if self._pagination_task and not self._pagination_task.done():
-                self._pagination_task.cancel()
-                try:
-                    await self._pagination_task
-                except asyncio.CancelledError:
-                    pass
-            
-            # 创建新的分页任务
-            self._pagination_task = asyncio.create_task(self._send_paginated_text(text))
+            # 使用锁确保分页任务串行化
+            async with self._pagination_lock:
+                # 取消之前的分页任务（如果存在）
+                if self._pagination_task and not self._pagination_task.done():
+                    self._pagination_task.cancel()
+                    try:
+                        await self._pagination_task
+                    except asyncio.CancelledError:
+                        pass
+                
+                # 创建新的分页任务
+                self._pagination_task = asyncio.create_task(self._send_paginated_text(text))
         else:
             # 不使用分页，使用原来的截断逻辑
             text = self._truncate_text(text, max_length=MAX_LENGTH)
@@ -375,13 +371,12 @@ class OSCManager:
         
         for i, page in enumerate(pages):
             page_num = i + 1
-            # 为每页添加页码标记
-            page_with_marker = f"[{page_num}/{total_pages}] {page}"
+            # 计算页码标记
+            marker = f"[{page_num}/{total_pages}] "
+            page_with_marker = marker + page
             
-            # 如果添加页码后超长，则移除部分内容
+            # 如果添加页码后超长，则截断内容
             if len(page_with_marker) > MAX_LENGTH:
-                # 计算可用空间
-                marker = f"[{page_num}/{total_pages}] "
                 available_length = MAX_LENGTH - len(marker)
                 page_with_marker = marker + page[:available_length]
             
