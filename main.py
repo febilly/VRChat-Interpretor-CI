@@ -93,6 +93,13 @@ VAD_SILENCE_DURATION_MS = 800  # VAD静音持续时间（毫秒），检测到�
 SHOW_PARTIAL_RESULTS = False  # 是否显示识别中的部分结果（ongoing）
                              # True: 显示部分识别结果到聊天框（可能覆盖掉之前的翻译结果）
                              # False: 只显示完整识别结果
+
+# 长文本处理配置
+ENABLE_PAGINATION = False  # 是否启用分页功能处理超长文本（超过144字符）
+                          # True: 将超长文本分割成多页，按间隔时间依次发送
+                          # False: 使用截断方式，删除前面的句子保留后面的内容（默认行为）
+PAGE_INTERVAL = 3.0      # 分页间隔时间（秒），启用分页时各页之间的发送间隔
+                          # 建议设置为 2.5-5.0 秒，给玩家足够时间阅读每一页
                              
 # ================================
 
@@ -493,6 +500,13 @@ async def main():
     # 启动OSC服务器
     print('[OSC] 启动OSC服务器...')
     await osc_manager.start_server()
+    
+    # 配置分页功能
+    osc_manager.configure_pagination(enable=ENABLE_PAGINATION, page_interval=PAGE_INTERVAL)
+    if ENABLE_PAGINATION:
+        print(f'[OSC] 分页功能已启用，间隔时间: {PAGE_INTERVAL}秒')
+    else:
+        print('[OSC] 分页功能已禁用，将使用截断方式处理超长文本')
     
     # 设置静音状态回调
     osc_manager.set_mute_callback(handle_mute_change)
