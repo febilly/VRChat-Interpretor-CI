@@ -417,10 +417,14 @@ async def handle_mute_change(is_muted):
     Args:
         is_muted: True表示静音(停止识别), False表示取消静音(开始识别)
     """
-    global recognition_active, recognition_instance, mute_delay_task, recognition_started
+    global recognition_active, recognition_instance, mute_delay_task, recognition_started, hotkey_toggle_enabled
     
     # 如果禁用了麦克风控制，则忽略所有麦克风状态变化
     if not ENABLE_MIC_CONTROL:
+        return
+    
+    # 如果用户通过快捷键手动切换了状态，则忽略麦克风控制
+    if hotkey_toggle_enabled:
         return
     
     if recognition_instance is None:
@@ -473,6 +477,7 @@ async def handle_mute_change(is_muted):
 def on_toggle_recognition_hotkey():
     """
     快捷键处理：切换识别开关
+    使用快捷键切换时，会临时禁用麦克风控制，避免冲突
     """
     global recognition_instance, recognition_active, hotkey_toggle_enabled
     
@@ -483,26 +488,22 @@ def on_toggle_recognition_hotkey():
     # 创建异步任务切换识别状态
     loop = asyncio.get_event_loop()
     
-    if recognition_active and not hotkey_toggle_enabled:
+    if recognition_active:
         # 当前识别开启，切换为关闭
-        print('[Hotkey] 快捷键：关闭翻译器')
+        print('[Hotkey] 快捷键：关闭翻译器（麦克风控制已临时禁用）')
         hotkey_toggle_enabled = True
         asyncio.run_coroutine_threadsafe(stop_recognition_async(recognition_instance), loop)
-    elif not recognition_active and hotkey_toggle_enabled:
-        # 当前识别关闭，切换为开启
-        print('[Hotkey] 快捷键：开启翻译器')
-        hotkey_toggle_enabled = False
-        asyncio.run_coroutine_threadsafe(start_recognition_async(recognition_instance), loop)
-    elif not recognition_active and not hotkey_toggle_enabled:
-        # 由麦克风控制关闭的状态，不允许通过快捷键开启
-        print('[Hotkey] 快捷键：开启翻译器（已禁用麦克风控制）')
-        hotkey_toggle_enabled = True
-        asyncio.run_coroutine_threadsafe(start_recognition_async(recognition_instance), loop)
     else:
-        # 由麦克风控制开启的状态，可以通过快捷键关闭
-        print('[Hotkey] 快捷键：关闭翻译器')
-        hotkey_toggle_enabled = True
-        asyncio.run_coroutine_threadsafe(stop_recognition_async(recognition_instance), loop)
+        # 当前识别关闭，切换为开启
+        if hotkey_toggle_enabled:
+            # 已经处于快捷键控制模式，恢复麦克风控制
+            print('[Hotkey] 快捷键：开启翻译器（已恢复麦克风控制）')
+            hotkey_toggle_enabled = False
+        else:
+            # 首次使用快捷键，进入快捷键控制模式
+            print('[Hotkey] 快捷键：开启翻译器（麦克风控制已临时禁用）')
+            hotkey_toggle_enabled = True
+        asyncio.run_coroutine_threadsafe(start_recognition_async(recognition_instance), loop)
 
 
 def on_switch_language_hotkey():
