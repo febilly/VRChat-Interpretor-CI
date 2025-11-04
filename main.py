@@ -124,12 +124,20 @@ mute_delay_task = None  # 延迟停止任务
 CURRENT_ASR_BACKEND = ASR_BACKEND
 vocabulary_id = None  # 热词表 ID
 
+# 当前使用的目标语言（可通过快捷键动态切换）
+current_target_language = TARGET_LANGUAGE
+
 # 初始化当前语言索引（基于 TARGET_LANGUAGE）
 current_language_index = 0
 if TARGET_LANGUAGE in LANGUAGE_CYCLE:
     current_language_index = LANGUAGE_CYCLE.index(TARGET_LANGUAGE)
+else:
+    # 如果 TARGET_LANGUAGE 不在列表中，将其添加到列表开头
+    LANGUAGE_CYCLE.insert(0, TARGET_LANGUAGE)
+    current_language_index = 0
 
 hotkey_toggle_enabled = False  # 标记快捷键切换是否已启用
+main_event_loop = None  # 存储主事件循环引用，用于跨线程调用
 
 # ============ 初始化服务实例 ============
 translation_api = TranslationAPI()
@@ -217,14 +225,14 @@ class VRChatRecognitionCallback(SpeechRecognitionCallback):
                 return lang_lower
 
             normalized_source = normalize_lang(source_lang)
-            normalized_target = normalize_lang(TARGET_LANGUAGE)
+            normalized_target = normalize_lang(current_target_language)
 
             if FALLBACK_LANGUAGE and normalized_source == normalized_target:
                 actual_target = FALLBACK_LANGUAGE
                 print(f'原文：{text} [{source_lang_info["language"]}]')
                 print(f'检测到源语言与目标语言相同，使用备用语言: {FALLBACK_LANGUAGE}')
             else:
-                actual_target = TARGET_LANGUAGE
+                actual_target = current_target_language
                 print(f'原文：{text} [{source_lang_info["language"]}]')
 
             translated_text = translator.translate(
@@ -479,20 +487,21 @@ def on_toggle_recognition_hotkey():
     快捷键处理：切换识别开关
     使用快捷键切换时，会临时禁用麦克风控制，避免冲突
     """
-    global recognition_instance, recognition_active, hotkey_toggle_enabled
+    global recognition_instance, recognition_active, hotkey_toggle_enabled, main_event_loop
     
     if recognition_instance is None:
         print('[Hotkey] 识别实例未初始化，无法切换')
         return
     
-    # 创建异步任务切换识别状态
-    loop = asyncio.get_event_loop()
+    if main_event_loop is None:
+        print('[Hotkey] 事件循环未初始化，无法切换')
+        return
     
     if recognition_active:
         # 当前识别开启，切换为关闭
         print('[Hotkey] 快捷键：关闭翻译器（麦克风控制已临时禁用）')
         hotkey_toggle_enabled = True
-        asyncio.run_coroutine_threadsafe(stop_recognition_async(recognition_instance), loop)
+        asyncio.run_coroutine_threadsafe(stop_recognition_async(recognition_instance), main_event_loop)
     else:
         # 当前识别关闭，切换为开启
         if hotkey_toggle_enabled:
@@ -503,20 +512,21 @@ def on_toggle_recognition_hotkey():
             # 首次使用快捷键，进入快捷键控制模式
             print('[Hotkey] 快捷键：开启翻译器（麦克风控制已临时禁用）')
             hotkey_toggle_enabled = True
-        asyncio.run_coroutine_threadsafe(start_recognition_async(recognition_instance), loop)
+        asyncio.run_coroutine_threadsafe(start_recognition_async(recognition_instance), main_event_loop)
 
 
 def on_switch_language_hotkey():
     """
     快捷键处理：切换目标语言
     """
-    global current_language_index, translator
+    global current_language_index, current_target_language, translator, main_event_loop
     
     # 切换到下一个语言
     current_language_index = (current_language_index + 1) % len(LANGUAGE_CYCLE)
     new_language = LANGUAGE_CYCLE[current_language_index]
     
-    # 更新translator的目标语言
+    # 更新当前目标语言和translator的目标语言
+    current_target_language = new_language
     translator.target_language = new_language
     
     # 显示语言切换信息
@@ -535,11 +545,11 @@ def on_switch_language_hotkey():
     print(f'[Hotkey] 目标语言已切换为: {language_display} ({new_language})')
     
     # 通过OSC发送通知到VRChat聊天框
-    loop = asyncio.get_event_loop()
-    asyncio.run_coroutine_threadsafe(
-        osc_manager.send_text(f'[系统] 目标语言: {language_display}', ongoing=False),
-        loop
-    )
+    if main_event_loop is not None:
+        asyncio.run_coroutine_threadsafe(
+            osc_manager.send_text(f'[系统] 目标语言: {language_display}', ongoing=False),
+            main_event_loop
+        )
 
 
 def setup_hotkeys():
@@ -580,9 +590,12 @@ def cleanup_hotkeys():
 
 async def main():
     """主异步函数"""
-    global recognition_instance, recognition_active, vocabulary_id, CURRENT_ASR_BACKEND, recognition_started
+    global recognition_instance, recognition_active, vocabulary_id, CURRENT_ASR_BACKEND, recognition_started, main_event_loop
     vocabulary_id = None
     corpus_text: Optional[str] = None
+    
+    # 保存主事件循环引用，用于跨线程调用
+    main_event_loop = asyncio.get_event_loop()
 
     # 初始化 DashScope API Key
     init_dashscope_api_key()
