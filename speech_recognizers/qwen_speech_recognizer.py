@@ -3,6 +3,7 @@ from __future__ import annotations
 import base64
 from contextlib import suppress
 import threading
+import time
 from typing import Any, Dict, Optional
 
 from dashscope.audio.qwen_omni import (
@@ -53,7 +54,7 @@ class _QwenOmniCallbackAdapter(OmniRealtimeCallback):
         self._user_callback.on_session_started()
 
     def on_close(self, code, msg) -> None:  # type: ignore[override]
-        _ = (code, msg)  # unused metadata
+        print(f"[WebSocket] Connection closed: code={code}, msg={msg}")
         self._user_callback.on_session_stopped()
         self._recognizer._notify_closed()
 
@@ -98,7 +99,7 @@ class _QwenOmniCallbackAdapter(OmniRealtimeCallback):
         fixed = message.get("text") or ""
         stash = message.get("stash") or ""
         combined = f"{fixed}{stash}"
-        print(f"Intermediate recognized text: {combined}")
+        # print(f"Intermediate recognized text: {combined}")
         self._items[item_id] = {"fixed": fixed, "stash": stash}
         if not combined:
             return
@@ -150,6 +151,10 @@ class QwenSpeechRecognizer(SpeechRecognizer):
         self._last_first_text_delay: Optional[int] = None
         self._last_first_audio_delay: Optional[int] = None
         self._paused: bool = False
+        self._keepalive_thread: Optional[threading.Thread] = None
+        self._keepalive_stop_event = threading.Event()
+        self._connection_closed: bool = False  # 标记连接是否已关闭
+        self._should_run: bool = False  # 标记服务是否应该运行（用于自动重连）
 
         options = dict(recognition_kwargs)
         self._model = options.pop("model", "qwen3-asr-flash-realtime")
@@ -166,6 +171,7 @@ class QwenSpeechRecognizer(SpeechRecognizer):
         self._corpus_text = options.pop("corpus_text", None)
         self._enable_input_audio_transcription = options.pop("enable_input_audio_transcription", True)
         self._transcription_params: Optional[TranscriptionParams] = options.pop("transcription_params", None)
+        self._keepalive_interval = options.pop("keepalive_interval", 30)  # 心跳间隔（秒）
         self._conversation_kwargs = dict(options.pop("conversation_kwargs", {}))
         self._update_session_overrides = dict(options.pop("update_session_kwargs", {}))
         if options:
@@ -192,6 +198,8 @@ class QwenSpeechRecognizer(SpeechRecognizer):
         with self._lock:
             if self._conversation is not None:
                 return
+            self._should_run = True  # 标记服务应该运行
+            self._connection_closed = False
             adapter = self._create_adapter()
             conversation = OmniRealtimeConversation(callback=adapter, **self._conversation_kwargs)
             adapter.attach_conversation(conversation)
@@ -228,11 +236,22 @@ class QwenSpeechRecognizer(SpeechRecognizer):
                 update_kwargs.setdefault("turn_detection_type", None)
             update_kwargs.update(self._update_session_overrides)
             conversation.update_session(**update_kwargs)
+            
+            # 启动心跳线程
+            self._start_keepalive()
+            print("[WebSocket] Connection established successfully.")
         except Exception:
             self._teardown_conversation(close=True)
             raise
 
     def stop(self) -> None:
+        # 标记服务不应该运行（禁用自动重连）
+        with self._lock:
+            self._should_run = False
+        
+        # 停止心跳线程
+        self._stop_keepalive()
+        
         conversation = self._teardown_conversation(close=False)
         if conversation is None:
             return
@@ -247,12 +266,37 @@ class QwenSpeechRecognizer(SpeechRecognizer):
     def send_audio_frame(self, data: bytes) -> None:
         if not data:
             return
+        
+        # 检查是否需要重连
+        should_reconnect = False
         with self._lock:
             if self._paused:
                 return
+            # 检查连接是否已关闭且应该运行
+            if self._connection_closed and self._should_run:
+                should_reconnect = True
+                self._connection_closed = False  # 重置标志，准备重连
+        
+        # 如果需要重连，在锁外执行重连
+        if should_reconnect:
+            try:
+                self._reconnect()
+            except Exception as e:
+                print(f"[WebSocket] Reconnection failed: {e}")
+                with self._lock:
+                    self._connection_closed = True  # 重连失败，重新标记
+                return
+        
         conversation = self._require_conversation()
         audio_b64 = base64.b64encode(data).decode("ascii")
-        conversation.append_audio(audio_b64)
+        try:
+            conversation.append_audio(audio_b64)
+        except Exception as e:
+            print(f"[WebSocket] Error sending audio: {e}")
+            # 标记连接已关闭，下次发送时会尝试重连
+            with self._lock:
+                self._connection_closed = True
+            raise
 
     def pause(self) -> None:
         conversation: Optional[OmniRealtimeConversation] = None
@@ -283,8 +327,25 @@ class QwenSpeechRecognizer(SpeechRecognizer):
                     conversation.commit()
 
     def resume(self) -> None:
+        should_reconnect = False
         with self._lock:
+            if not self._paused:
+                return  # 已经在运行
             self._paused = False
+            # 检查连接是否已关闭
+            if self._connection_closed and self._should_run:
+                should_reconnect = True
+                self._connection_closed = False
+        
+        # 如果连接已关闭，尝试重连
+        if should_reconnect:
+            try:
+                print("[WebSocket] Connection was closed during pause, reconnecting...")
+                self._reconnect()
+            except Exception as e:
+                print(f"[WebSocket] Reconnection on resume failed: {e}")
+                with self._lock:
+                    self._connection_closed = True
 
     def get_last_request_id(self) -> Optional[str]:
         with self._lock:
@@ -327,6 +388,9 @@ class QwenSpeechRecognizer(SpeechRecognizer):
         return TranscriptionParams(**params)
 
     def _teardown_conversation(self, *, close: bool) -> Optional[OmniRealtimeConversation]:
+        # 先停止心跳
+        self._stop_keepalive()
+        
         with self._lock:
             conversation = self._conversation
             if conversation is None:
@@ -370,6 +434,114 @@ class QwenSpeechRecognizer(SpeechRecognizer):
 
     def _notify_closed(self) -> None:
         with self._lock:
+            self._connection_closed = True  # 标记连接已关闭
             self._conversation = None
             self._adapter = None
-            self._paused = False
+            # 注意：不要重置 _paused，因为可能需要保持暂停状态
+            # 也不要重置 _should_run，因为可能需要自动重连
+
+    def _reconnect(self) -> None:
+        """重新建立WebSocket连接"""
+        print("[WebSocket] Starting reconnection...")
+        
+        # 清理旧连接
+        self._teardown_conversation(close=True)
+        
+        with self._lock:
+            if not self._should_run:
+                print("[WebSocket] Service is stopped, cancelling reconnection.")
+                return
+            
+            self._connection_closed = False
+            adapter = self._create_adapter()
+            conversation = OmniRealtimeConversation(callback=adapter, **self._conversation_kwargs)
+            adapter.attach_conversation(conversation)
+            self._conversation = conversation
+            self._adapter = adapter
+            # 保留之前的暂停状态
+            paused = self._paused
+
+        conversation = self._conversation
+        assert conversation is not None
+        
+        try:
+            conversation.connect()
+            transcription_params = self._resolve_transcription_params()
+            update_kwargs: Dict[str, Any] = {
+                "output_modalities": [MultiModality.TEXT],
+                "enable_input_audio_transcription": self._enable_input_audio_transcription,
+                "transcription_params": transcription_params,
+            }
+            if self._enable_turn_detection is not None:
+                update_kwargs["enable_turn_detection"] = self._enable_turn_detection
+            if self._enable_turn_detection:
+                update_kwargs.setdefault("turn_detection_type", "server_vad")
+                if self._turn_detection_threshold is not None:
+                    update_kwargs.setdefault("turn_detection_threshold", self._turn_detection_threshold)
+                if self._turn_detection_silence_duration_ms is not None:
+                    update_kwargs.setdefault(
+                        "turn_detection_silence_duration_ms",
+                        self._turn_detection_silence_duration_ms,
+                    )
+            else:
+                update_kwargs.setdefault("turn_detection_type", None)
+            update_kwargs.update(self._update_session_overrides)
+            conversation.update_session(**update_kwargs)
+            
+            # 重新启动心跳线程
+            self._start_keepalive()
+            print("[WebSocket] Reconnection successful!")
+        except Exception as e:
+            print(f"[WebSocket] Reconnection failed: {e}")
+            self._teardown_conversation(close=True)
+            raise
+
+    def _start_keepalive(self) -> None:
+        """启动心跳线程以保持WebSocket连接活跃"""
+        with self._lock:
+            if self._keepalive_thread is not None:
+                return  # 已经运行
+            self._keepalive_stop_event.clear()
+            self._keepalive_thread = threading.Thread(
+                target=self._keepalive_worker,
+                daemon=True,
+                name="QwenKeepalive"
+            )
+            self._keepalive_thread.start()
+
+    def _stop_keepalive(self) -> None:
+        """停止心跳线程"""
+        with self._lock:
+            if self._keepalive_thread is None:
+                return
+            self._keepalive_stop_event.set()
+            thread = self._keepalive_thread
+            self._keepalive_thread = None
+        
+        if thread is not None and thread.is_alive():
+            thread.join(timeout=2.0)
+
+    def _keepalive_worker(self) -> None:
+        """心跳工作线程：定期发送极短的静音音频以保持连接活跃"""
+        while not self._keepalive_stop_event.wait(timeout=self._keepalive_interval):
+            try:
+                with self._lock:
+                    conversation = self._conversation
+                    paused = self._paused
+                
+                # 只在会话存在且处于暂停状态时发送心跳
+                # 如果正在活跃发送音频，不需要额外的心跳
+                if conversation is not None and paused:
+                    # 发送一个极短的静音音频帧作为心跳
+                    # 使用100ms的静音（远小于VAD检测时长）
+                    sample_rate = self._sample_rate or 16000
+                    keepalive_frames = int(sample_rate * 0.1)  # 100ms
+                    silence_data = b'\x00' * (keepalive_frames * 2)  # 16-bit PCM
+                    audio_b64 = base64.b64encode(silence_data).decode("ascii")
+                    
+                    with suppress(Exception):
+                        conversation.append_audio(audio_b64)
+                        # print("[Keepalive] Sent heartbeat audio frame.")
+            except Exception:
+                # 忽略心跳过程中的错误，继续下一次心跳
+                pass

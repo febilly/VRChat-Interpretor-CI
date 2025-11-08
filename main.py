@@ -25,87 +25,44 @@ from speech_recognizers.recognizer_factory import (
     select_backend,
 )
 
+# 导入配置
+import config
+
 # 加载 .env 文件中的环境变量
 load_dotenv()
 
 # 配置日志
-logging.basicConfig(level=logging.ERROR)
+logging.basicConfig(level=getattr(logging, config.LOG_LEVEL))
 logger = logging.getLogger(__name__)
 
-# ============ 配置常量 ============
+# ============ 根据配置选择语言检测器 ============
+if config.LANGUAGE_DETECTOR_TYPE == 'fasttext':
+    from language_detectors.fasttext_detector import FasttextDetector as LanguageDetector
+elif config.LANGUAGE_DETECTOR_TYPE == 'enzh':
+    from language_detectors.enzh_detector import EnZhDetector as LanguageDetector
+else:  # 默认使用 cjke
+    from language_detectors.cjke_detector import CJKEDetector as LanguageDetector
 
-# 语音识别后端配置
-VALID_ASR_BACKENDS = {'dashscope', 'qwen'}
-ASR_BACKEND = os.environ.get('ASR_BACKEND', 'qwen').strip().lower()
-if ASR_BACKEND not in VALID_ASR_BACKENDS:
-    ASR_BACKEND = 'dashscope'
-
-# 音频参数配置
-SAMPLE_RATE = 16000  # 采样率 (Hz)
-CHANNELS = 1  # 单声道
-DTYPE = 'int16'  # 数据类型
-BITS = 16  # 每个采样的位数
-FORMAT_PCM = 'pcm'  # 音频数据格式
-BLOCK_SIZE = 1600  # 每个缓冲区的帧数
-
-# 翻译语言配置
-SOURCE_LANGUAGE = 'auto'  # 翻译源语言（'auto' 为自动检测，或指定如 'en', 'ja' 等）
-TARGET_LANGUAGE = 'en'  # 翻译目标语言（'zh-CN'=简体中文, 'en'=英文, 'ja'=日文 等）
-FALLBACK_LANGUAGE = 'zh'  # 备用翻译语言（当源语言和目标语言相同时使用）
-                             # 设置为 None（非字符串）则禁用备用语言功能
-
-# 语言识别配置
-# from language_detectors.fasttext_detector import FasttextDetector as LanguageDetector  # FastText 通用语言检测器
-from language_detectors.cjke_detector import CJKEDetector as LanguageDetector  # 专用中日韩英语言检测器
-# from language_detectors.enzh_detector import EnZhDetector as LanguageDetector  # 专用中英语言检测器
-
-# 翻译API配置
-# from translators.translation_apis.google_web_api import GoogleWebAPI as TranslationAPI  # 标准的 Google Translate API，开箱即用，如果下面这个能用，就不推荐用这个
-# from translators.translation_apis.google_dictionary_api import GoogleDictionaryAPI as TranslationAPI  # 更快的 Google Translate API，开箱即用
-from translators.translation_apis.deepl_api import DeepLAPI as TranslationAPI  # DeepL API，需配置 DEEPL_API_KEY 环境变量
-# from translators.translation_apis.openrouter_api import OpenRouterAPI as TranslationAPI  # OpenRouter API，需配置 OPENROUTER_API_KEY 环境变量
-
-# 翻译上下文
-CONTEXT_PREFIX = "This is an audio transcription of a conversation within the online multiplayer social game VRChat:"  # 上下文前缀文本
-
-# 麦克风控制配置
-ENABLE_MIC_CONTROL = True  # 是否考虑游戏内麦克风的开关情况
-                           # True: 根据 VRChat 麦克风状态控制识别的启动/停止
-                           # False: 程序启动时立即开始识别,忽略麦克风开关消息
-
-MUTE_DELAY_SECONDS = 0.2  # 收到静音消息后延迟停止识别的秒数
-                          # 设置为 0 则立即停止
-
-# 热词配置
-ENABLE_HOT_WORDS = True  # 是否启用热词功能
-
-# VAD配置（仅Qwen后端）
-ENABLE_VAD = True  # 是否启用服务器端VAD（语音活动检测）
-                   # True: 启用VAD，服务器自动检测语音结束并断句
-                   # False: 禁用VAD，需要手动调用commit()来触发断句
-                   # 注意：VAD和手动commit不能同时使用
-                   # - 启用VAD时，pause()会发送静音音频触发断句，而不是调用commit()
-                   # - 禁用VAD时，pause()会调用commit()手动断句
-VAD_THRESHOLD = 0.2  # VAD阈值（0.0-1.0），值越小越敏感
-VAD_SILENCE_DURATION_MS = 800  # VAD静音持续时间（毫秒），检测到此时长的静音后触发断句
-
-# 显示配置
-SHOW_PARTIAL_RESULTS = False  # 是否显示识别中的部分结果（ongoing）
-                             # True: 显示部分识别结果到聊天框（可能覆盖掉之前的翻译结果）
-                             # False: 只显示完整识别结果
-                             
-# ================================
+# ============ 根据配置选择翻译 API ============
+if config.TRANSLATION_API_TYPE == 'google_web':
+    from translators.translation_apis.google_web_api import GoogleWebAPI as TranslationAPI
+elif config.TRANSLATION_API_TYPE == 'google_dictionary':
+    from translators.translation_apis.google_dictionary_api import GoogleDictionaryAPI as TranslationAPI
+elif config.TRANSLATION_API_TYPE == 'openrouter':
+    from translators.translation_apis.openrouter_api import OpenRouterAPI as TranslationAPI
+else:  # 默认使用 deepl
+    from translators.translation_apis.deepl_api import DeepLAPI as TranslationAPI
 
 # ============ 全局变量 ============
 mic = None
 stream = None
-executor = ThreadPoolExecutor(max_workers=8)
+executor = ThreadPoolExecutor(max_workers=config.MAX_WORKERS)
 stop_event = asyncio.Event()
 recognition_active = False  # 标记识别是否正在运行
 recognition_started = False  # 标记是否已建立识别会话
 recognition_instance: Optional[SpeechRecognizer] = None  # 全局识别实例
 mute_delay_task = None  # 延迟停止任务
-CURRENT_ASR_BACKEND = ASR_BACKEND
+CURRENT_ASR_BACKEND = config.PREFERRED_ASR_BACKEND
 vocabulary_id = None  # 热词表 ID
 
 # ============ 初始化服务实例 ============
@@ -113,7 +70,7 @@ translation_api = TranslationAPI()
 translator = ContextAwareTranslator(
     translation_api=translation_api, 
     max_context_size=6,
-    target_language=TARGET_LANGUAGE,
+    target_language=config.TARGET_LANGUAGE,
     context_aware=True
 )
 
@@ -181,44 +138,50 @@ class VRChatRecognitionCallback(SpeechRecognitionCallback):
             print(f'部分：{text}', end='\r')
             display_text = text
         else:
-            source_lang_info = language_detector.detect(text)
-            source_lang = source_lang_info['language']
-
-            def normalize_lang(lang):
-                """标准化语言代码"""
-                lang_lower = lang.lower()
-                if lang_lower in ['zh', 'zh-cn', 'zh-tw', 'zh-hans', 'zh-hant']:
-                    return 'zh'
-                if lang_lower in ['en', 'en-us', 'en-gb']:
-                    return 'en'
-                return lang_lower
-
-            normalized_source = normalize_lang(source_lang)
-            normalized_target = normalize_lang(TARGET_LANGUAGE)
-
-            if FALLBACK_LANGUAGE and normalized_source == normalized_target:
-                actual_target = FALLBACK_LANGUAGE
-                print(f'原文：{text} [{source_lang_info["language"]}]')
-                print(f'检测到源语言与目标语言相同，使用备用语言: {FALLBACK_LANGUAGE}')
+            # 如果禁用翻译，直接显示识别结果
+            if not config.ENABLE_TRANSLATION:
+                print(f'识别：{text}')
+                display_text = text
             else:
-                actual_target = TARGET_LANGUAGE
-                print(f'原文：{text} [{source_lang_info["language"]}]')
+                # 启用翻译，执行翻译逻辑
+                source_lang_info = language_detector.detect(text)
+                source_lang = source_lang_info['language']
 
-            translated_text = translator.translate(
-                text,
-                source_language=SOURCE_LANGUAGE,
-                target_language=actual_target,
-                context_prefix=CONTEXT_PREFIX,
-            )
-            is_translated = True
-            print(f'译文：{translated_text}')
+                def normalize_lang(lang):
+                    """标准化语言代码"""
+                    lang_lower = lang.lower()
+                    if lang_lower in ['zh', 'zh-cn', 'zh-tw', 'zh-hans', 'zh-hant']:
+                        return 'zh'
+                    if lang_lower in ['en', 'en-us', 'en-gb']:
+                        return 'en'
+                    return lang_lower
 
-            display_text = f"[{normalized_source}→{actual_target}] {translated_text}"
+                normalized_source = normalize_lang(source_lang)
+                normalized_target = normalize_lang(config.TARGET_LANGUAGE)
+
+                if config.FALLBACK_LANGUAGE and normalized_source == normalized_target:
+                    actual_target = config.FALLBACK_LANGUAGE
+                    print(f'原文：{text} [{source_lang_info["language"]}]')
+                    print(f'检测到源语言与目标语言相同，使用备用语言: {config.FALLBACK_LANGUAGE}')
+                else:
+                    actual_target = config.TARGET_LANGUAGE
+                    print(f'原文：{text} [{source_lang_info["language"]}]')
+
+                translated_text = translator.translate(
+                    text,
+                    source_language=config.SOURCE_LANGUAGE,
+                    target_language=actual_target,
+                    context_prefix=config.CONTEXT_PREFIX,
+                )
+                is_translated = True
+                print(f'译文：{translated_text}')
+
+                display_text = f"[{normalized_source}→{actual_target}] {translated_text}"
 
         if display_text is None:
             return
 
-        should_send = (not is_ongoing) or SHOW_PARTIAL_RESULTS
+        should_send = (not is_ongoing) or config.SHOW_PARTIAL_RESULTS
 
         if self.loop:
             if should_send:
@@ -248,10 +211,10 @@ async def init_audio_stream():
         mic = pyaudio.PyAudio()
         stream = mic.open(
             format=pyaudio.paInt16,
-            channels=CHANNELS,
-            rate=SAMPLE_RATE,
+            channels=config.CHANNELS,
+            rate=config.SAMPLE_RATE,
             input=True,
-            frames_per_buffer=BLOCK_SIZE
+            frames_per_buffer=config.BLOCK_SIZE
         )
         return stream
     
@@ -286,7 +249,7 @@ async def read_audio_data():
     
     def _read():
         try:
-            return stream.read(BLOCK_SIZE, exception_on_overflow=False)
+            return stream.read(config.BLOCK_SIZE, exception_on_overflow=False)
         except Exception as e:
             print(f'Error reading audio data: {e}')
             return None
@@ -350,8 +313,8 @@ async def stop_recognition_async(recognizer: SpeechRecognizer):
 
     if CURRENT_ASR_BACKEND == 'dashscope':
         # 发送静音音频帧，确保本次识别至少发送了一个音频帧，否则会报错
-        silence_frames = BLOCK_SIZE
-        silence_data = b'\x00' * (BITS // 8 * silence_frames)
+        silence_frames = config.BLOCK_SIZE
+        silence_data = b'\x00' * (config.BITS // 8 * silence_frames)
         await send_audio_frame_async(recognizer, silence_data)
         await asyncio.sleep(0.1)
         try:
@@ -397,7 +360,7 @@ async def handle_mute_change(is_muted):
     global recognition_active, recognition_instance, mute_delay_task, recognition_started
     
     # 如果禁用了麦克风控制，则忽略所有麦克风状态变化
-    if not ENABLE_MIC_CONTROL:
+    if not config.ENABLE_MIC_CONTROL:
         return
     
     if recognition_instance is None:
@@ -414,13 +377,13 @@ async def handle_mute_change(is_muted):
             if mute_delay_task and not mute_delay_task.done():
                 mute_delay_task.cancel()
             
-            if MUTE_DELAY_SECONDS > 0:
-                print(f'[ASR] 检测到静音，将在 {MUTE_DELAY_SECONDS} 秒后{stop_word}语音识别...')
+            if config.MUTE_DELAY_SECONDS > 0:
+                print(f'[ASR] 检测到静音，将在 {config.MUTE_DELAY_SECONDS} 秒后{stop_word}语音识别...')
                 
                 async def delayed_stop():
                     global recognition_active
                     try:
-                        await asyncio.sleep(MUTE_DELAY_SECONDS)
+                        await asyncio.sleep(config.MUTE_DELAY_SECONDS)
                         if recognition_active:  # 再次检查，确保期间没有取消静音
                             print(f'[ASR] 延迟时间到，{stop_word}语音识别')
                             await stop_recognition_async(recognition_instance)
@@ -458,8 +421,8 @@ async def main():
     print('Initializing ...')
 
     # 选择可用的识别后端
-    backend = select_backend(ASR_BACKEND, VALID_ASR_BACKENDS)
-    if backend != ASR_BACKEND:
+    backend = select_backend(config.PREFERRED_ASR_BACKEND, config.VALID_ASR_BACKENDS)
+    if backend != config.PREFERRED_ASR_BACKEND:
         print(f'[ASR] 已切换语音识别后端为 {backend}')
     else:
         print(f'[ASR] 目标识别后端: {backend}')
@@ -469,7 +432,7 @@ async def main():
     recognition_started = False
 
     # 初始化热词（如果启用）
-    if ENABLE_HOT_WORDS:
+    if config.ENABLE_HOT_WORDS:
         print('\n[热词] 初始化热词资源...')
         try:
             hot_words_manager = HotWordsManager()
@@ -506,24 +469,30 @@ async def main():
     recognition_instance = create_recognizer(
         backend=backend,
         callback=callback,
-        sample_rate=SAMPLE_RATE,
-        audio_format=FORMAT_PCM,
-        source_language=SOURCE_LANGUAGE,
+        sample_rate=config.SAMPLE_RATE,
+        audio_format=config.FORMAT_PCM,
+        source_language=config.SOURCE_LANGUAGE,
         vocabulary_id=vocabulary_id,
         corpus_text=corpus_text,
-        enable_vad=ENABLE_VAD,
-        vad_threshold=VAD_THRESHOLD,
-        vad_silence_duration_ms=VAD_SILENCE_DURATION_MS,
+        enable_vad=config.ENABLE_VAD,
+        vad_threshold=config.VAD_THRESHOLD,
+        vad_silence_duration_ms=config.VAD_SILENCE_DURATION_MS,
+        keepalive_interval=config.KEEPALIVE_INTERVAL,
     )
     
     if vocabulary_id and backend == 'dashscope':
         print(f'[ASR] 使用热词表: {vocabulary_id}')
     
     if backend == 'qwen':
-        vad_status = '启用' if ENABLE_VAD else '禁用'
+        vad_status = '启用' if config.ENABLE_VAD else '禁用'
         print(f'[ASR] VAD状态: {vad_status}')
-        if ENABLE_VAD:
-            print(f'[ASR] VAD配置: 阈值={VAD_THRESHOLD}, 静音时长={VAD_SILENCE_DURATION_MS}ms')
+        if config.ENABLE_VAD:
+            print(f'[ASR] VAD配置: 阈值={config.VAD_THRESHOLD}, 静音时长={config.VAD_SILENCE_DURATION_MS}ms')
+        
+        if config.KEEPALIVE_INTERVAL > 0:
+            print(f'[ASR] WebSocket心跳已启用: 间隔={config.KEEPALIVE_INTERVAL}秒')
+        else:
+            print('[ASR] WebSocket心跳已禁用')
     
     print('[ASR] 识别实例已创建')
     
@@ -533,7 +502,7 @@ async def main():
     signal.signal(signal.SIGINT, signal_handler)
     
     # 根据配置决定是否立即启动识别
-    if ENABLE_MIC_CONTROL:
+    if config.ENABLE_MIC_CONTROL:
         stop_hint = '暂停' if backend == 'qwen' else '停止'
         resume_hint = '恢复' if backend == 'qwen' else '开始'
         print("=" * 60)

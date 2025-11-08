@@ -61,7 +61,7 @@ _可以说我就是为了这点醋包的这顿饺子_
 
 ## 局限性
 - 你得会配环境（
-- 目前没（懒得）写 GUI，所有配置需要在 `main.py` 里面直接改
+- 目前没（懒得）写 GUI，所有配置需要在 `config.py` 文件中修改
 - 使用脚本启动时系统的默认麦克风
 - 需要用商业服务的API Key，有一定免费额度，但免费额度用完后需要付钱
     - 阿里云的免费额度是一次性的，但是大学生可以拿到每年的免费额度
@@ -106,9 +106,45 @@ DASHSCOPE_API_KEY=your_dashscope_api_key_here
 
 # 可选：DeepL API Key（如果使用默认的 DeepL 翻译）
 DEEPL_API_KEY=your_deepl_api_key_here
+
+# 可选：OpenRouter API Key（如果使用 OpenRouter 进行翻译）
+OPENROUTER_API_KEY=your_openrouter_api_key_here
 ```
 
-### 5. 运行程序
+### 5. 修改配置（可选）
+
+编辑 `config.py` 文件，根据需求调整配置：
+
+<details>
+
+```python
+# 选择语音识别后端
+PREFERRED_ASR_BACKEND = 'qwen'  # 'qwen' 或 'dashscope'
+
+# 翻译功能配置
+ENABLE_TRANSLATION = True  # 是否启用翻译功能
+TARGET_LANGUAGE = 'zh'  # 目标语言
+FALLBACK_LANGUAGE = 'en'  # 备用语言
+
+# 选择翻译 API
+TRANSLATION_API_TYPE = 'deepl'  # 'deepl', 'google_web', 'google_dictionary', 'openrouter'
+
+# 麦克风控制
+ENABLE_MIC_CONTROL = True  # 是否根据 VRChat 麦克风状态控制识别
+MUTE_DELAY_SECONDS = 0.2  # 静音后延迟停止的秒数
+
+# VAD 配置（仅 Qwen 后端）
+ENABLE_VAD = True  # 是否启用语音活动检测
+VAD_THRESHOLD = 0.2  # VAD 阈值（0.0-1.0）
+VAD_SILENCE_DURATION_MS = 800  # 静音持续时间（毫秒）
+
+# WebSocket 保活（仅 Qwen 后端）
+KEEPALIVE_INTERVAL = 30  # 心跳间隔（秒），0 表示禁用
+```
+
+</details>
+
+### 6. 运行程序
 
 ```bash
 python main.py
@@ -116,31 +152,64 @@ python main.py
 
 ## API Key 获取
 
-- 阿里云百炼：https://bailian.console.aliyun.com/?tab=model#/model-market/detail/fun-asr-realtime
-- DeepL：https://www.deepl.com/en/pro-api
+- **阿里云百炼（必需）**：https://bailian.console.aliyun.com/?tab=model#/model-market/detail/fun-asr-realtime
+  - 注册后可获得免费额度
+  - 大学生可申请每年的免费额度
+  
+- **DeepL（可选）**：https://www.deepl.com/en/pro-api
+  - 每月有 500,000 字符的免费额度
+  - 需要使用特殊方式获取 API Key
+  
+- **OpenRouter（可选）**：https://openrouter.ai/
+  - 提供多种 LLM 模型
+  - 部分模型有免费额度（如 Gemini）
 
 ## 配置说明
 
-在 `main.py` 文件顶部有详细的配置选项。这里的说明可能已过时，请以源码为准。
+所有配置选项都集中在 `config.py` 文件中，便于管理和修改。
 
 <details>
+
+### 语音识别后端配置
+
+```python
+PREFERRED_ASR_BACKEND = 'qwen'  # 首选识别后端
+# 'qwen': Qwen3 实时语音识别（推荐，更快，支持 VAD）
+# 'dashscope': Fun-ASR 实时语音识别
+
+VALID_ASR_BACKENDS = {'dashscope', 'qwen'}  # 有效后端集合
+```
+
+**后端对比：**
+| 后端 | 模型 | 优点 | 特性 |
+|------|------|------|------|
+| qwen | qwen3-asr-flash-realtime | 速度快、延迟低 | 支持 VAD、WebSocket 保活 |
+| dashscope | fun-asr-realtime | 稳定性好 | 热词表支持 |
+
+### 翻译功能配置
+
+```python
+ENABLE_TRANSLATION = True  # 是否启用翻译功能
+# True: 识别后翻译文本
+# False: 直接发送识别结果，不翻译
+```
 
 ### 翻译语言配置
 
 ```python
 SOURCE_LANGUAGE = 'auto'  # 翻译源语言
 # 'auto': 自动检测
-# 或指定：'en'=英文, 'ja'=日文, 'zh-CN'=简体中文 等
+# 或指定：'en'=英文, 'ja'=日文, 'zh'=简体中文 等
 
 TARGET_LANGUAGE = 'ja'  # 翻译目标语言
-# 'zh-CN': 简体中文
+# 'zh': 简体中文
 # 'en': 英文
 # 'ja': 日文
 # 'ko': 韩文
 # 'es': 西班牙语
 # 'fr': 法语 等
 
-FALLBACK_LANGUAGE = 'zh'  # 备用翻译语言
+FALLBACK_LANGUAGE = 'en'  # 备用翻译语言
 # 当检测到源语言与目标语言相同时，自动使用此语言
 # 设置为 None 则禁用此功能
 ```
@@ -148,33 +217,35 @@ FALLBACK_LANGUAGE = 'zh'  # 备用翻译语言
 ### 语言检测器配置
 
 ```python
-# 选择语言检测器（取消注释一行）
-# from language_detectors.fasttext_detector import FasttextDetector as LanguageDetector  # 通用检测器
-from language_detectors.cjke_detector import CJKEDetector as LanguageDetector  # 中日韩英检测器（推荐）
-# from language_detectors.enzh_detector import EnZhDetector as LanguageDetector  # 中英检测器
+LANGUAGE_DETECTOR_TYPE = 'cjke'  # 语言检测器类型
+# 'cjke': 中日韩英检测器（推荐，速度快）
+# 'enzh': 中英检测器
+# 'fasttext': 通用检测器（支持更多语言）
 ```
 
 **推荐配置：**
-- 主要使用中日韩英语言 → 使用 `CJKEDetector`（速度快、准确度高）
-- 只使用中英双语 → 使用 `EnZhDetector`
-- 需要更多语言支持 → 使用 `FasttextDetector`
+- 主要使用中日韩英语言 → 使用 `'cjke'`（速度快、准确度高）
+- 只使用中英双语 → 使用 `'enzh'`
+- 需要更多语言支持 → 使用 `'fasttext'`
     - 附带一些针对中文和日语的特殊规则，提高短文本准确性
 
 ### 翻译 API 配置
 
 ```python
-# 选择翻译 API（取消注释一行）
-# from translators.translation_apis.google_web_api import GoogleWebAPI as TranslationAPI  # Google 标准版（免费）
-# from translators.translation_apis.google_dictionary_api import GoogleDictionaryAPI as TranslationAPI  # Google 快速版（免费）
-from translators.translation_apis.deepl_api import DeepLAPI as TranslationAPI  # DeepL（需 API Key）
+TRANSLATION_API_TYPE = 'deepl'  # 翻译 API 类型
+# 'deepl': DeepL API（需 API Key，质量最高）
+# 'google_web': Google Web API（免费，稳定）
+# 'google_dictionary': Google Dictionary API（免费，快速）
+# 'openrouter': OpenRouter API（需 API Key，使用 LLM 翻译）
 ```
 
 **API 对比：**
 | API | 优点 | 缺点 | API Key |
 |-----|------|------|---------|
-| Google Web | 免费、稳定 | 速度较慢 | 不需要 |
-| Google Dictionary | 免费、快速 | 可能会被谷歌封杀掉 | 不需要 |
-| DeepL | 质量最高 | 有免费额度限制 | 需要 |
+| Google Web | 免费、稳定 | 速度较慢，有速率限制 | 不需要 |
+| Google Dictionary | 免费、快速 | 有速率限制 | 不需要 |
+| DeepL | 质量最高、原生支持上下文 | 有免费额度限制 | 需要 |
+| OpenRouter | 使用 LLM、上下文理解好 | 延迟较高、需付费 | 需要 |
 
 ### 翻译上下文
 
@@ -204,6 +275,34 @@ ENABLE_HOT_WORDS = True  # 是否启用热词功能
 # False: 不使用热词
 ```
 
+### VAD 配置（仅 Qwen 后端）
+
+```python
+ENABLE_VAD = True  # 是否启用服务器端 VAD（语音活动检测）
+# True: 启用 VAD，服务器自动检测语音结束并断句
+# False: 禁用 VAD，需要手动触发断句
+
+VAD_THRESHOLD = 0.2  # VAD 阈值（0.0-1.0）
+# 值越小越敏感，越容易触发断句
+
+VAD_SILENCE_DURATION_MS = 800  # VAD 静音持续时间（毫秒）
+# 检测到此时长的静音后触发断句
+```
+
+### WebSocket 保活配置（仅 Qwen 后端）
+
+```python
+KEEPALIVE_INTERVAL = 30  # WebSocket 心跳间隔（秒）
+# 防止长时间闲置导致连接超时
+# 设置为 0 则禁用心跳功能
+# 建议值：30-60 秒
+```
+
+**说明：**
+- WebSocket 心跳会在后台定期发送静音音频帧，保持连接活跃
+- 如果连接意外断开，系统会自动尝试重连
+- 重连机制确保识别过程不会因网络波动而中断
+
 ### 显示配置
 
 ```python
@@ -211,6 +310,16 @@ SHOW_PARTIAL_RESULTS = False  # 是否显示部分识别结果
 # True: 识别过程中实时显示部分结果（可能覆盖掉之前的翻译结果）
 # False: 只显示完整句子的识别结果（推荐）
 ```
+
+### 模型名称配置
+
+```python
+DASHSCOPE_ASR_MODEL = 'fun-asr-realtime'  # DashScope ASR 模型
+QWEN_ASR_MODEL = 'qwen3-asr-flash-realtime'  # Qwen ASR 模型
+OPENROUTER_TRANSLATION_MODEL = 'gemini-2.0-flash-exp:free'  # OpenRouter 翻译模型
+DASHSCOPE_HOTWORD_MODEL = 'paraformer-v2'  # DashScope 热词模型
+```
+
 </details>
 
 ## 热词配置
@@ -278,15 +387,40 @@ STT/
 
 ## 常见问题
 
+<details>
+
 ### 1. 没有任何转录
 
 - 检查系统的默认麦克风是否为你在用的麦克风
-- 检查麦克风有没有声音
+- 检查麦克风是否有声音输入
+- 检查 `ENABLE_MIC_CONTROL` 配置：
+  - 如果为 `True`，需要在 VRChat 中打开麦克风才能开始识别
+  - 如果为 `False`，程序启动后会立即开始识别
 
 ### 2. VRChat 聊天框没有显示
 
 - 确认 VRChat OSC 已启用
-- 如果你修改了 OSC 端口，请在 `main.py` 中同步修改 `OSC_PORT` 配置
+- 如果修改了 OSC 端口，请在 `config.py` 中同步修改 `OSC_PORT` 配置
+
+### 3. WebSocket 连接经常断开
+
+- 调整 `KEEPALIVE_INTERVAL` 参数（建议 30-60 秒）
+- 检查网络连接稳定性
+- 系统会自动尝试重连，通常不需要手动干预
+
+### 4. 翻译延迟较高
+
+- 如果使用 OpenRouter API，延迟会比较明显
+- 建议使用 DeepL 或 Google API 以获得更快的响应速度
+- 可以设置 `ENABLE_TRANSLATION = False` 禁用翻译，直接输出识别结果
+
+### 5. 配置修改后没有生效
+
+- 确保修改的是 `config.py` 文件
+- 重启程序以使配置生效
+- 检查是否有语法错误（Python 对缩进敏感）
+
+</details>
 
 ## 附录
 

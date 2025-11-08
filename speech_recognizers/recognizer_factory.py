@@ -5,6 +5,7 @@ import os
 from typing import Any, Dict, Optional
 
 import dashscope
+import config
 
 from .base_speech_recognizer import SpeechRecognitionCallback, SpeechRecognizer
 from .dashscope_speech_recognizer import DashscopeSpeechRecognizer
@@ -36,7 +37,8 @@ def create_recognizer(
     corpus_text: Optional[str] = None,
     enable_vad: bool = True,
     vad_threshold: float = 0.2,
-    vad_silence_duration_ms: int = 800,
+    vad_silence_duration_ms: int = 1300,
+    keepalive_interval: int = 30,
     **extra_kwargs: Any
 ) -> SpeechRecognizer:
     """
@@ -53,6 +55,7 @@ def create_recognizer(
         enable_vad: 是否启用VAD（仅 qwen 后端使用）
         vad_threshold: VAD阈值（仅 qwen 后端使用）
         vad_silence_duration_ms: VAD静音持续时间（仅 qwen 后端使用）
+        keepalive_interval: WebSocket心跳间隔（秒，仅 qwen 后端使用，0表示禁用）
         **extra_kwargs: 其他自定义参数
     
     Returns:
@@ -67,13 +70,14 @@ def create_recognizer(
             raise RuntimeError('QwenSpeechRecognizer 不可用，请安装相关依赖')
         
         recognition_kwargs: Dict[str, Any] = {
-            'model': os.environ.get('QWEN_ASR_MODEL', 'qwen3-asr-flash-realtime'),
-            'url': os.environ.get('QWEN_ASR_URL', 'wss://dashscope.aliyuncs.com/api-ws/v1/realtime'),
+            'model': config.QWEN_ASR_MODEL,
+            'url': config.QWEN_ASR_URL,
             'sample_rate': sample_rate,
             'input_audio_format': audio_format,
             'enable_turn_detection': enable_vad,
             'turn_detection_threshold': vad_threshold,
             'turn_detection_silence_duration_ms': vad_silence_duration_ms,
+            'keepalive_interval': keepalive_interval,
         }
         
         # 语言提示
@@ -92,7 +96,7 @@ def create_recognizer(
     
     elif backend == 'dashscope':
         recognition_kwargs = {
-            'model': 'fun-asr-realtime',
+            'model': config.DASHSCOPE_ASR_MODEL,
             'format': audio_format,
             'sample_rate': sample_rate,
             'semantic_punctuation_enabled': False,
