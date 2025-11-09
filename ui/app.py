@@ -168,7 +168,8 @@ def update_config_api():
         else:
             return jsonify({'success': False, 'message': '配置更新失败'}), 500
     except Exception as e:
-        return jsonify({'success': False, 'message': str(e)}), 500
+        print(f'Error updating config: {e}')
+        return jsonify({'success': False, 'message': '配置更新失败'}), 500
 
 
 @app.route('/api/status', methods=['GET'])
@@ -191,7 +192,8 @@ def start_service():
         service_status['running'] = True
         return jsonify({'success': True, 'message': '服务已启动'})
     except Exception as e:
-        return jsonify({'success': False, 'message': f'启动失败: {str(e)}'}), 500
+        print(f'Error starting service: {e}')
+        return jsonify({'success': False, 'message': '启动失败'}), 500
 
 
 @app.route('/api/service/stop', methods=['POST'])
@@ -214,7 +216,8 @@ def stop_service():
         service_status['recognition_active'] = False
         return jsonify({'success': True, 'message': '服务已停止'})
     except Exception as e:
-        return jsonify({'success': False, 'message': f'停止失败: {str(e)}'}), 500
+        print(f'Error stopping service: {e}')
+        return jsonify({'success': False, 'message': '停止失败'}), 500
 
 
 if __name__ == '__main__':
