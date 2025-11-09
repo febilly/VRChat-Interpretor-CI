@@ -5,6 +5,7 @@ Web UI for VRChat Translator
 import asyncio
 import json
 import threading
+import logging
 from typing import Optional
 from flask import Flask, render_template, jsonify, request
 from flask_cors import CORS
@@ -17,6 +18,10 @@ import config
 
 app = Flask(__name__)
 CORS(app)
+
+# 禁用Flask的请求日志
+log = logging.getLogger('werkzeug')
+log.setLevel(logging.ERROR)
 
 # 全局状态
 service_status = {
@@ -218,6 +223,66 @@ def stop_service():
     except Exception as e:
         print(f'Error stopping service: {e}')
         return jsonify({'success': False, 'message': '停止失败'}), 500
+
+
+@app.route('/api/service/restart', methods=['POST'])
+def restart_service():
+    """重启服务"""
+    global service_thread, service_status, service_loop, stop_event
+    
+    if not service_status['running']:
+        return jsonify({'success': False, 'message': '服务未运行，无需重启'})
+    
+    try:
+        # 先停止
+        if stop_event and service_loop:
+            service_loop.call_soon_threadsafe(stop_event.set)
+        
+        if service_thread:
+            service_thread.join(timeout=10)
+        
+        service_status['running'] = False
+        service_status['recognition_active'] = False
+        
+        # 再启动
+        service_thread = threading.Thread(target=run_service_async, daemon=True)
+        service_thread.start()
+        service_status['running'] = True
+        
+        return jsonify({'success': True, 'message': '服务已重启'})
+    except Exception as e:
+        print(f'Error restarting service: {e}')
+        return jsonify({'success': False, 'message': '重启失败'}), 500
+
+
+@app.route('/api/config/defaults', methods=['GET'])
+def get_defaults():
+    """获取默认配置"""
+    return jsonify({
+        'asr': {
+            'preferred_backend': 'qwen',
+            'enable_vad': True,
+            'vad_threshold': 0.2,
+            'vad_silence_duration_ms': 800,
+            'keepalive_interval': 30,
+            'enable_hot_words': True,
+        },
+        'translation': {
+            'enable_translation': True,
+            'source_language': 'auto',
+            'target_language': 'zh',
+            'fallback_language': 'en',
+            'api_type': 'deepl',
+            'show_partial_results': False,
+        },
+        'mic_control': {
+            'enable_mic_control': True,
+            'mute_delay_seconds': 0.2,
+        },
+        'language_detector': {
+            'type': 'cjke',
+        },
+    })
 
 
 if __name__ == '__main__':

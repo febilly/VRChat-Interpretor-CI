@@ -65,8 +65,8 @@ OPENROUTER_TRANSLATION_MAX_RETRIES = 3
 # ============================================================================
 
 # 是否启用翻译功能
-ENABLE_TRANSLATION = False  # True: 识别后翻译文本
-                            # False: 直接发送识别结果，不翻译
+ENABLE_TRANSLATION = True  # True: 识别后翻译文本
+                           # False: 直接发送识别结果，不翻译
 
 # 翻译上下文前缀
 CONTEXT_PREFIX = "This is an audio transcription of a conversation within the online multiplayer social game VRChat:"
@@ -129,9 +129,8 @@ KEEPALIVE_INTERVAL = 30  # 设置为0则禁用心跳功能
 # ============================================================================
 
 # 是否显示识别中的部分结果（ongoing）
-SHOW_PARTIAL_RESULTS = not ENABLE_TRANSLATION  # True: 显示部分识别结果到聊天框（可能覆盖掉之前的翻译结果）
-                                                # False: 只显示完整识别结果
-                                                # 默认：翻译时不显示部分结果，不翻译时显示
+SHOW_PARTIAL_RESULTS = False  # True: 显示部分识别结果到聊天框（可能覆盖掉之前的翻译结果）
+                               # False: 只显示完整识别结果
 
 # ============================================================================
 # 语言检测器配置

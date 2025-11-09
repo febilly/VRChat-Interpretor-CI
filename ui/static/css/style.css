@@ -157,6 +157,11 @@ header h1 {
     color: white;
 }
 
+.btn-warning {
+    background-color: var(--warning-color);
+    color: white;
+}
+
 .btn-block {
     width: 100%;
 }
@@ -192,6 +197,42 @@ header h1 {
     font-size: 12px;
     color: #777;
 }
+
+.form-text a {
+    color: var(--primary-color);
+    text-decoration: none;
+}
+
+.form-text a:hover {
+    text-decoration: underline;
+}
+
+.api-key-group {
+    margin-bottom: 20px;
+    padding: 15px;
+    background: #f9f9f9;
+    border-radius: 6px;
+}
+
+.api-key-group:last-child {
+    margin-bottom: 0;
+}
+
+.api-key-group label {
+    display: block;
+    margin-bottom: 8px;
+    font-weight: 600;
+    color: #333;
+}
+
+#translation-options {
+    transition: opacity 0.3s, max-height 0.3s;
+}
+
+#translation-options.hidden {
+    display: none;
+}
+
 
 /* Switch Toggle */
 .switch-label {
