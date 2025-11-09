@@ -42,7 +42,7 @@ BLOCK_SIZE = 1600  # 每个缓冲区的帧数
 # ============================================================================
 
 SOURCE_LANGUAGE = 'auto'  # 翻译源语言（'auto' 为自动检测，或指定如 'en', 'ja' 等）
-TARGET_LANGUAGE = 'zh'  # 翻译目标语言（'zh-CN'=简体中文, 'en'=英文, 'ja'=日文 等）
+TARGET_LANGUAGE = 'ja'  # 翻译目标语言（'zh-CN'=简体中文, 'en'=英文, 'ja'=日文 等）
 FALLBACK_LANGUAGE = 'en'  # 备用翻译语言（当源语言和目标语言相同时使用）
                            # 设置为 None（非字符串）则禁用备用语言功能
 
@@ -65,7 +65,7 @@ OPENROUTER_TRANSLATION_MAX_RETRIES = 3
 # ============================================================================
 
 # 是否启用翻译功能
-ENABLE_TRANSLATION = False  # True: 识别后翻译文本
+ENABLE_TRANSLATION = True  # True: 识别后翻译文本
                             # False: 直接发送识别结果，不翻译
 
 # 翻译上下文前缀
@@ -114,7 +114,7 @@ ENABLE_VAD = True  # True: 启用VAD，服务器自动检测语音结束并断�
 VAD_THRESHOLD = 0.2
 
 # VAD静音持续时间（毫秒），检测到此时长的静音后触发断句
-VAD_SILENCE_DURATION_MS = 800
+VAD_SILENCE_DURATION_MS = 1200
 
 # ============================================================================
 # WebSocket 保活配置（仅 Qwen 后端）
