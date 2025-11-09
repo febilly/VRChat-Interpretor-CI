@@ -220,7 +220,7 @@ def stop_service():
 if __name__ == '__main__':
     print('='*60)
     print('VRChat 翻译器 Web UI')
-    print('访问 http://localhost:5000 打开控制面板')
+    print('访问 http://localhost:5001 打开控制面板')
     print('按 Ctrl+C 退出')
     print('='*60)
-    app.run(host='0.0.0.0', port=5000, debug=False)
+    app.run(host='0.0.0.0', port=5001, debug=False)

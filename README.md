@@ -152,7 +152,7 @@ KEEPALIVE_INTERVAL = 30  # 心跳间隔（秒），0 表示禁用
 python run_ui.py
 ```
 
-然后在浏览器中打开 `http://localhost:5000`，通过Web界面进行配置和控制。
+然后在浏览器中打开 `http://localhost:5001`，通过Web界面进行配置和控制。
 
 Web UI 特点：
 - 🎨 直观的图形化界面
@@ -168,6 +168,56 @@ python main.py
 ```
 
 使用此方法时，需要手动在 `config.py` 中修改配置。
+
+## Web UI 使用说明
+
+Web UI 提供了一个直观的图形化界面来配置和控制翻译器。
+
+### 主要功能
+
+1. **服务控制**
+   - 启动/停止翻译服务
+   - 实时查看服务状态
+
+2. **基本设置**
+   - 启用/禁用翻译功能
+   - 选择目标语言和备用语言
+   - 选择翻译API（DeepL、Google等）
+   - 配置麦克风控制和静音延迟
+
+3. **语音识别设置**
+   - 选择识别后端（Qwen或DashScope）
+   - 启用/禁用热词
+   - 控制是否显示部分识别结果
+
+4. **高级设置（可折叠）**
+   - VAD（语音活动检测）配置
+   - WebSocket保活设置
+   - 语言检测器选择
+   - 源语言设置
+
+### 界面预览
+
+<details>
+<summary>点击查看界面截图</summary>
+
+**完整界面**：
+![Web UI 完整界面](https://github.com/user-attachments/assets/cbaba71c-a89f-4b04-aacd-489b16968849)
+
+**折叠高级设置后**：
+![Web UI 折叠状态](https://github.com/user-attachments/assets/364bebfc-8d57-468a-8ca2-6f33edc146f8)
+
+</details>
+
+### 使用流程
+
+1. 启动 Web UI：`python run_ui.py`
+2. 在浏览器打开 `http://localhost:5001`
+3. 调整所需参数
+4. 点击"保存配置"按钮
+5. 点击"启动服务"开始翻译
+
+**注意**：配置更改需要重启服务才能生效。
 
 ## API Key 获取
 
