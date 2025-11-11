@@ -499,7 +499,13 @@ async def main():
     # 初始化音频流
     await init_audio_stream()
 
-    signal.signal(signal.SIGINT, signal_handler)
+    # 只在主线程中设置信号处理器
+    try:
+        signal.signal(signal.SIGINT, signal_handler)
+    except ValueError:
+        # 在非主线程中运行时，signal.signal会抛出ValueError
+        # 这种情况下由Web UI的stop接口处理停止逻辑
+        pass
     
     # 根据配置决定是否立即启动识别
     if config.ENABLE_MIC_CONTROL:
