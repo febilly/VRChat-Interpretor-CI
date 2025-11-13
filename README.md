@@ -16,8 +16,8 @@
 ## 快速开始
 
 1. 在 [Release](https://github.com/febilly/Yakutan/releases) 中下载最新的 exe
-2. 将 exe 放在一个空文件夹中并运行
-3. 根据 `API Keys 配置` 面板的说明获取并填入 API Keys
+2. 将 exe 放在一个空文件夹中并运行，WebUI 应该会自动打开
+3. 根据 WebUI 中 `API Keys 配置` 面板的说明获取并填入 API Keys
 4. 点击 `启动服务` 按钮
 
 ## 不是已经有人做过了吗，为什么要再做一个翻译器？？？
