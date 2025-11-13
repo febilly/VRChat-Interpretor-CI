@@ -30,6 +30,7 @@ class OSCManager:
         if not hasattr(self, '_initialized'):
             self._initialized = True
             self._server = None
+            self._transport = None  # 保存transport用于关闭
             self._client = None
             self._mute_callback = None  # 静音状态变化的回调函数
             
@@ -110,17 +111,20 @@ class OSCManager:
             asyncio.get_event_loop()
         )
         
-        transport, protocol = await self._server.create_serve_endpoint()
+        self._transport, protocol = await self._server.create_serve_endpoint()
         logger.info(f"[OSC] OSC服务器已启动，监听地址: {self._osc_server_host}:{self._osc_server_port}")
-        return transport
+        return self._transport
     
     async def stop_server(self):
         """停止OSC服务器"""
+        if self._transport is not None:
+            self._transport.close()
+            logger.info("[OSC] OSC服务器transport已关闭")
+            self._transport = None
+        
         if self._server is not None:
-            # 注意：AsyncIOOSCUDPServer 没有直接的关闭方法
-            # 可以通过关闭transport来停止
-            logger.info("[OSC] OSC服务器停止（如需要可实现）")
             self._server = None
+            logger.info("[OSC] OSC服务器已停止")
     
     def _truncate_text(self, text: str, max_length: int = 144) -> str:
         """
