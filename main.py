@@ -418,6 +418,10 @@ async def main():
     if executor._shutdown:
         executor = ThreadPoolExecutor(max_workers=config.MAX_WORKERS)
     
+    # 重置全局变量
+    recognition_instance = None
+    recognition_active = False
+    recognition_started = False
     vocabulary_id = None
     corpus_text: Optional[str] = None
 
@@ -582,6 +586,7 @@ async def main():
                 await loop.run_in_executor(executor, recognition_instance.stop)
             except Exception:
                 pass
+            recognition_instance = None
             recognition_started = False
             recognition_active = False
         
