@@ -6,6 +6,9 @@ on:
       - main
   workflow_dispatch:  # 允许手动触发
 
+permissions:
+  contents: write  # 允许创建 release 和推送 tag
+
 jobs:
   build:
     runs-on: windows-latest
@@ -35,30 +38,17 @@ jobs:
         $commitSha = "${{ github.sha }}".Substring(0, 7)
         $commitMsg = git log -1 --pretty=%B
         $timestamp = Get-Date -Format "yyyyMMdd-HHmmss"
+        $tag = "v$timestamp-$commitSha"
         echo "sha=$commitSha" >> $env:GITHUB_OUTPUT
         echo "message=$commitMsg" >> $env:GITHUB_OUTPUT
         echo "timestamp=$timestamp" >> $env:GITHUB_OUTPUT
-    
-    - name: Create release tag
-      id: create_tag
-      run: |
-        $tag = "v${{ steps.commit_info.outputs.timestamp }}-${{ steps.commit_info.outputs.sha }}"
         echo "tag=$tag" >> $env:GITHUB_OUTPUT
-        git config user.name "github-actions[bot]"
-        git config user.email "github-actions[bot]@users.noreply.github.com"
-        git tag $tag
-        git push origin $tag
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     
     - name: Create Release
-      id: create_release
-      uses: actions/create-release@v1
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      uses: softprops/action-gh-release@v1
       with:
-        tag_name: ${{ steps.create_tag.outputs.tag }}
-        release_name: VRChat Translator ${{ steps.create_tag.outputs.tag }}
+        tag_name: ${{ steps.commit_info.outputs.tag }}
+        name: VRChat Translator ${{ steps.commit_info.outputs.tag }}
         body: |
           ## 自动构建版本
           
@@ -66,18 +56,22 @@ jobs:
           **提交 SHA**: ${{ steps.commit_info.outputs.sha }}
           **构建时间**: ${{ steps.commit_info.outputs.timestamp }}
           
+          ### 使用方法
+          
+          1. 下载 `VRChat_Translator_WebUI.exe`
+          2. 双击运行
+          3. 在浏览器打开 `http://localhost:5001`
+          4. 在 Web UI 中配置 API Keys
+          
+          ### 注意事项
+          
+          - 首次运行可能需要下载语言检测模型
+          - 私人热词请放在可执行文件同目录的 `hot_words_private` 文件夹
+        files: ./dist/VRChat_Translator_WebUI.exe
         draft: false
         prerelease: true
-    
-    - name: Upload Release Asset
-      uses: actions/upload-release-asset@v1
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      with:
-        upload_url: ${{ steps.create_release.outputs.upload_url }}
-        asset_path: ./dist/VRChat_Translator_WebUI.exe
-        asset_name: VRChat_Translator_WebUI.exe
-        asset_content_type: application/octet-stream
     
     - name: Upload artifact
       uses: actions/upload-artifact@v4
