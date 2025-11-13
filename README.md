@@ -1,14 +1,24 @@
-# VRChat 翻译器 非流式输出版
+# Yakutan
 
 更适合中国 [~~计科~~](#局限性) 宝宝体质的 VRChat 语音翻译器（翻译你自己的声音）
 
-- 使用阿里的 [qwen3实时语音识别（默认）](https://bailian.console.aliyun.com/?tab=model#/model-market/detail/qwen3-asr-flash) 或 [Fun-ASR](https://bailian.console.aliyun.com/?tab=model#/model-market/detail/fun-asr-realtime) 进行语音转文本
+<div style="text-align: center;">
+    <img src="images/screenshot.png" alt="A Screenshot of the WebUI of Yakutan" style="max-width: 100%; width: 512px; height: auto;">
+</div>
+
+- 使用阿里的 [Qwen3实时语音识别（默认）](https://bailian.console.aliyun.com/?tab=model#/model-market/detail/qwen3-asr-flash) 或 [Fun-ASR](https://bailian.console.aliyun.com/?tab=model#/model-market/detail/fun-asr-realtime) 进行语音转文本
 - 使用 DeepL 进行翻译
     - 可以切换为开箱即用的谷歌翻译（当然你的网得行）
 - 将结果通过 OSC 发送至游戏
+- 有一些 [独特的功能](#特点)
 - ~~其实就是把一堆 API 粘在了一起~~
 
-有一些特殊功能，请看下文
+## 快速开始
+
+1. 在 [Release](https://github.com/febilly/Yakutan/releases) 中下载最新的 exe
+2. 将 exe 放在一个空文件夹中并运行
+3. 根据 `API Keys 配置` 面板的说明获取并填入 API Keys
+4. 点击 `启动服务` 按钮
 
 ## 不是已经有人做过了吗，为什么要再做一个翻译器？？？
 
@@ -27,7 +37,7 @@ _可以说我就是为了这点醋包的这顿饺子_
 
 ### 翻译方面
 - 翻译需要上下文
-    - 没有上下文的话，比如看这句翻译：
+    - 没有上下文的话，比如看这句话被翻译成了啥：
         - 现在总行 _(xíng)_ 了吧？
         - Is the head office now?
 
@@ -36,7 +46,7 @@ _可以说我就是为了这点醋包的这顿饺子_
 ### 语音识别方面
 
 - 准确性：
-    - 使用阿里的 qwen3 或者 Fun-ASR：我试了好几个 STT 的 API，感觉阿里这个是挺好的，以及他有给免费额度
+    - 使用阿里的 Qwen3 或者 Fun-ASR：我试了好几个 STT 的 API，感觉阿里这个是挺好的，以及他有给免费额度
         - 但我对比的大部分都是国外的 API，感觉不是很公平...... 有更好的 API 可以跟我说一声！
     - 增加了热词词库
         - 自带一部分公共的词库
@@ -60,8 +70,8 @@ _可以说我就是为了这点醋包的这顿饺子_
 - 可以切换为使用大模型进行翻译，但由于延迟问题，默认不使用
 
 ## 局限性
-- 你得会配环境（
-- ~~目前没（懒得）写 GUI，所有配置需要在 `config.py` 文件中修改~~ **现在有Web UI了！**
+- ~~你得会配Python环境~~ **已提供打包好的可执行文件**
+- ~~目前没（懒得）写 GUI，所有配置需要在 `config.py` 文件中修改~~ **现在有Web UI了**
 - 使用脚本启动时系统的默认麦克风
 - 需要用商业服务的API Key，有一定免费额度，但免费额度用完后需要付钱
     - 阿里云的免费额度是一次性的，但是大学生可以拿到每年的免费额度
@@ -71,15 +81,17 @@ _可以说我就是为了这点醋包的这顿饺子_
 - 语言识别默认使用一个简单的中日韩英检测器
     - 如需其他语言，请自行修改配置
 
-## 快速开始
+## 命令行运行（高级）
 
-懒得自己写了，下面的东西让 AI 写了，我看了下，基本上写的没毛病，就凑合看一下吧，抱歉抱歉
+一般用户不需要此步骤，直接使用打包好的可执行文件即可。
+
+<details>
 
 ### 1. 克隆项目
 
 ```bash
-git clone https://github.com/febilly/VRChat-Interpretor-CI
-cd VRChat-Interpretor-CI
+git clone https://github.com/febilly/Yakutan
+cd Yakutan
 ```
 
 ### 2. 创建虚拟环境（推荐，非必须）
@@ -115,53 +127,7 @@ OPENROUTER_API_KEY=your_openrouter_api_key_here
 
 编辑 `config.py` 文件，根据需求调整配置：
 
-<details>
-
-```python
-# 选择语音识别后端
-PREFERRED_ASR_BACKEND = 'qwen'  # 'qwen' 或 'dashscope'
-
-# 翻译功能配置
-ENABLE_TRANSLATION = True  # 是否启用翻译功能
-TARGET_LANGUAGE = 'zh'  # 目标语言
-FALLBACK_LANGUAGE = 'en'  # 备用语言
-
-# 选择翻译 API
-TRANSLATION_API_TYPE = 'deepl'  # 'deepl', 'google_web', 'google_dictionary', 'openrouter'
-
-# 麦克风控制
-ENABLE_MIC_CONTROL = True  # 是否根据 VRChat 麦克风状态控制识别
-MUTE_DELAY_SECONDS = 0.2  # 静音后延迟停止的秒数
-
-# VAD 配置（仅 Qwen 后端）
-ENABLE_VAD = True  # 是否启用语音活动检测
-VAD_THRESHOLD = 0.2  # VAD 阈值（0.0-1.0）
-VAD_SILENCE_DURATION_MS = 800  # 静音持续时间（毫秒）
-
-# WebSocket 保活（仅 Qwen 后端）
-KEEPALIVE_INTERVAL = 30  # 心跳间隔（秒），0 表示禁用
-```
-
-</details>
-
 ### 6. 运行程序
-
-#### 方法一：使用 Web UI（推荐）
-
-```bash
-python run_ui.py
-```
-
-然后在浏览器中打开 `http://localhost:5001`，通过Web界面进行配置和控制。
-
-Web UI 特点：
-- 🎨 直观的图形化界面
-- 🎛️ 实时调整各项参数
-- 🔄 无需重启即可保存配置
-- 📊 服务状态实时监控
-- 📁 高级参数折叠显示，界面整洁
-
-#### 方法二：命令行方式
 
 ```bash
 python main.py
@@ -169,55 +135,7 @@ python main.py
 
 使用此方法时，需要手动在 `config.py` 中修改配置。
 
-## Web UI 使用说明
-
-Web UI 提供了一个直观的图形化界面来配置和控制翻译器。
-
-### 主要功能
-
-1. **服务控制**
-   - 启动/停止翻译服务
-   - 实时查看服务状态
-
-2. **基本设置**
-   - 启用/禁用翻译功能
-   - 选择目标语言和备用语言
-   - 选择翻译API（DeepL、Google等）
-   - 配置麦克风控制和静音延迟
-
-3. **语音识别设置**
-   - 选择识别后端（Qwen或DashScope）
-   - 启用/禁用热词
-   - 控制是否显示部分识别结果
-
-4. **高级设置（可折叠）**
-   - VAD（语音活动检测）配置
-   - WebSocket保活设置
-   - 语言检测器选择
-   - 源语言设置
-
-### 界面预览
-
-<details>
-<summary>点击查看界面截图</summary>
-
-**完整界面**：
-![Web UI 完整界面](https://github.com/user-attachments/assets/cbaba71c-a89f-4b04-aacd-489b16968849)
-
-**折叠高级设置后**：
-![Web UI 折叠状态](https://github.com/user-attachments/assets/364bebfc-8d57-468a-8ca2-6f33edc146f8)
-
 </details>
-
-### 使用流程
-
-1. 启动 Web UI：`python run_ui.py`
-2. 在浏览器打开 `http://localhost:5001`
-3. 调整所需参数
-4. 点击"保存配置"按钮
-5. 点击"启动服务"开始翻译
-
-**注意**：配置更改需要重启服务才能生效。
 
 ## API Key 获取
 
@@ -233,164 +151,6 @@ Web UI 提供了一个直观的图形化界面来配置和控制翻译器。
   - 提供多种 LLM 模型
   - 部分模型有免费额度（如 Gemini）
 
-## 配置说明
-
-所有配置选项都集中在 `config.py` 文件中，便于管理和修改。
-
-<details>
-
-### 语音识别后端配置
-
-```python
-PREFERRED_ASR_BACKEND = 'qwen'  # 首选识别后端
-# 'qwen': Qwen3 实时语音识别（推荐，更快，支持 VAD）
-# 'dashscope': Fun-ASR 实时语音识别
-
-VALID_ASR_BACKENDS = {'dashscope', 'qwen'}  # 有效后端集合
-```
-
-**后端对比：**
-| 后端 | 模型 | 优点 | 特性 |
-|------|------|------|------|
-| qwen | qwen3-asr-flash-realtime | 速度快、延迟低 | 支持 VAD、WebSocket 保活 |
-| dashscope | fun-asr-realtime | 稳定性好 | 热词表支持 |
-
-### 翻译功能配置
-
-```python
-ENABLE_TRANSLATION = True  # 是否启用翻译功能
-# True: 识别后翻译文本
-# False: 直接发送识别结果，不翻译
-```
-
-### 翻译语言配置
-
-```python
-SOURCE_LANGUAGE = 'auto'  # 翻译源语言
-# 'auto': 自动检测
-# 或指定：'en'=英文, 'ja'=日文, 'zh'=简体中文 等
-
-TARGET_LANGUAGE = 'ja'  # 翻译目标语言
-# 'zh': 简体中文
-# 'en': 英文
-# 'ja': 日文
-# 'ko': 韩文
-# 'es': 西班牙语
-# 'fr': 法语 等
-
-FALLBACK_LANGUAGE = 'en'  # 备用翻译语言
-# 当检测到源语言与目标语言相同时，自动使用此语言
-# 设置为 None 则禁用此功能
-```
-
-### 语言检测器配置
-
-```python
-LANGUAGE_DETECTOR_TYPE = 'cjke'  # 语言检测器类型
-# 'cjke': 中日韩英检测器（推荐，速度快）
-# 'enzh': 中英检测器
-# 'fasttext': 通用检测器（支持更多语言）
-```
-
-**推荐配置：**
-- 主要使用中日韩英语言 → 使用 `'cjke'`（速度快、准确度高）
-- 只使用中英双语 → 使用 `'enzh'`
-- 需要更多语言支持 → 使用 `'fasttext'`
-    - 附带一些针对中文和日语的特殊规则，提高短文本准确性
-
-### 翻译 API 配置
-
-```python
-TRANSLATION_API_TYPE = 'deepl'  # 翻译 API 类型
-# 'deepl': DeepL API（需 API Key，质量最高）
-# 'google_web': Google Web API（免费，稳定）
-# 'google_dictionary': Google Dictionary API（免费，快速）
-# 'openrouter': OpenRouter API（需 API Key，使用 LLM 翻译）
-```
-
-**API 对比：**
-| API | 优点 | 缺点 | API Key |
-|-----|------|------|---------|
-| Google Web | 免费、稳定 | 速度较慢，有速率限制 | 不需要 |
-| Google Dictionary | 免费、快速 | 有速率限制 | 不需要 |
-| DeepL | 质量最高、原生支持上下文 | 有免费额度限制 | 需要 |
-| OpenRouter | 使用 LLM、上下文理解好 | 延迟较高、需付费 | 需要 |
-
-### 翻译上下文
-
-```python
-CONTEXT_PREFIX = "This is an audio transcription of a conversation within the online multiplayer social game VRChat:"
-# 为翻译提供上下文信息，提高翻译质量
-# 可根据实际场景修改
-```
-
-### 麦克风控制配置
-
-```python
-ENABLE_MIC_CONTROL = True  # 是否启用 VRChat 麦克风控制
-# True: 根据 VRChat 内麦克风开关控制识别启停
-# False: 程序启动后立即开始识别，忽略麦克风状态
-
-MUTE_DELAY_SECONDS = 0.3  # 静音后延迟停止的秒数
-# 避免频繁开关导致识别中断
-# 设置为 0 则立即停止
-```
-
-### 热词配置
-
-```python
-ENABLE_HOT_WORDS = True  # 是否启用热词功能
-# True: 使用热词表提高特定词汇识别准确度
-# False: 不使用热词
-```
-
-### VAD 配置（仅 Qwen 后端）
-
-```python
-ENABLE_VAD = True  # 是否启用服务器端 VAD（语音活动检测）
-# True: 启用 VAD，服务器自动检测语音结束并断句
-# False: 禁用 VAD，需要手动触发断句
-
-VAD_THRESHOLD = 0.2  # VAD 阈值（0.0-1.0）
-# 值越小越敏感，越容易触发断句
-
-VAD_SILENCE_DURATION_MS = 800  # VAD 静音持续时间（毫秒）
-# 检测到此时长的静音后触发断句
-```
-
-### WebSocket 保活配置（仅 Qwen 后端）
-
-```python
-KEEPALIVE_INTERVAL = 30  # WebSocket 心跳间隔（秒）
-# 防止长时间闲置导致连接超时
-# 设置为 0 则禁用心跳功能
-# 建议值：30-60 秒
-```
-
-**说明：**
-- WebSocket 心跳会在后台定期发送静音音频帧，保持连接活跃
-- 如果连接意外断开，系统会自动尝试重连
-- 重连机制确保识别过程不会因网络波动而中断
-
-### 显示配置
-
-```python
-SHOW_PARTIAL_RESULTS = False  # 是否显示部分识别结果
-# True: 识别过程中实时显示部分结果（可能覆盖掉之前的翻译结果）
-# False: 只显示完整句子的识别结果（推荐）
-```
-
-### 模型名称配置
-
-```python
-DASHSCOPE_ASR_MODEL = 'fun-asr-realtime'  # DashScope ASR 模型
-QWEN_ASR_MODEL = 'qwen3-asr-flash-realtime'  # Qwen ASR 模型
-OPENROUTER_TRANSLATION_MODEL = 'gemini-2.0-flash-exp:free'  # OpenRouter 翻译模型
-DASHSCOPE_HOTWORD_MODEL = 'paraformer-v2'  # DashScope 热词模型
-```
-
-</details>
-
 ## 热词配置
 
 热词功能可以显著提高特定词汇的识别准确度，特别适合专业术语、人名、地名等。
@@ -401,11 +161,7 @@ DASHSCOPE_HOTWORD_MODEL = 'paraformer-v2'  # DashScope 热词模型
 ### 热词文件结构
 
 ```
-STT/
-├── hot_words/          # 公共热词目录（会被提交到 Git）
-│   ├── zh-cn.txt      # 中文热词
-│   ├── en.txt         # 英文热词
-│   └── ...
+可执行文件或脚本所在文件夹/
 └── hot_words_private/  # 私人热词目录（不会被提交到 Git）
     ├── zh-cn.txt      # 中文私人热词
     ├── en.txt         # 英文私人热词
