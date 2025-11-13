@@ -19,3 +19,7 @@ deepl
 
 # 语言检测库（用于自动检测源语言）
 fast-langdetect>=0.2.0
+
+# Web UI 框架
+flask>=3.0.0
+flask-cors>=4.0.0
