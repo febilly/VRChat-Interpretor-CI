@@ -31,7 +31,7 @@ class OpenRouterClient:
         self.api_key = os.getenv("OPENROUTER_API_KEY")
         if not self.api_key:
             raise ValueError(
-                "OpenRouter API key is not set. Set OPENROUTER_API_KEY in environment."
+                "OpenRouter API Key 未设置。请在网页控制面板的 'API Keys 配置' 中填写 OpenRouter API Key。"
             )
         
         self.base_url = "https://openrouter.ai/api/v1/chat/completions"

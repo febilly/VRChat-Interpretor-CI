@@ -141,14 +141,16 @@ def run_service_async():
     # 导入main模块并运行
     try:
         import main
-        main.stop_event.clear()
-        stop_event = main.stop_event
+        # 在 main() 函数内部会创建新的 stop_event，所以这里不需要清除
         service_loop.run_until_complete(main.main())
+        # 运行完成后获取 main 模块中的 stop_event 引用
+        stop_event = main.stop_event
     except Exception as e:
         print(f'Service error: {e}')
     finally:
         service_loop.close()
         service_loop = None
+        stop_event = None
 
 
 @app.route('/')
@@ -192,6 +194,20 @@ def start_service():
         return jsonify({'success': False, 'message': '服务已在运行中'})
     
     try:
+        # 从请求中获取 API Keys
+        data = request.json or {}
+        api_keys = data.get('api_keys', {})
+        
+        # 设置 API Keys 到环境变量
+        if 'dashscope' in api_keys and api_keys['dashscope']:
+            os.environ['DASHSCOPE_API_KEY'] = api_keys['dashscope']
+        
+        if 'deepl' in api_keys and api_keys['deepl']:
+            os.environ['DEEPL_API_KEY'] = api_keys['deepl']
+        
+        if 'openrouter' in api_keys and api_keys['openrouter']:
+            os.environ['OPENROUTER_API_KEY'] = api_keys['openrouter']
+        
         service_thread = threading.Thread(target=run_service_async, daemon=True)
         service_thread.start()
         service_status['running'] = True
@@ -210,8 +226,12 @@ def stop_service():
         return jsonify({'success': False, 'message': '服务未运行'})
     
     try:
-        if stop_event and service_loop:
-            service_loop.call_soon_threadsafe(stop_event.set)
+        # 从 main 模块获取最新的 stop_event
+        import main
+        current_stop_event = main.stop_event
+        
+        if current_stop_event and service_loop:
+            service_loop.call_soon_threadsafe(current_stop_event.set)
         
         # 等待线程结束（最多10秒）
         if service_thread:
@@ -219,6 +239,7 @@ def stop_service():
         
         service_status['running'] = False
         service_status['recognition_active'] = False
+        stop_event = None
         return jsonify({'success': True, 'message': '服务已停止'})
     except Exception as e:
         print(f'Error stopping service: {e}')
@@ -234,15 +255,20 @@ def restart_service():
         return jsonify({'success': False, 'message': '服务未运行，无需重启'})
     
     try:
+        # 从 main 模块获取最新的 stop_event
+        import main
+        current_stop_event = main.stop_event
+        
         # 先停止
-        if stop_event and service_loop:
-            service_loop.call_soon_threadsafe(stop_event.set)
+        if current_stop_event and service_loop:
+            service_loop.call_soon_threadsafe(current_stop_event.set)
         
         if service_thread:
             service_thread.join(timeout=10)
         
         service_status['running'] = False
         service_status['recognition_active'] = False
+        stop_event = None
         
         # 再启动
         service_thread = threading.Thread(target=run_service_async, daemon=True)
@@ -283,6 +309,33 @@ def get_defaults():
             'type': 'cjke',
         },
     })
+
+
+@app.route('/api/check-api-key', methods=['POST'])
+def check_api_key():
+    """检查API Key是否有效"""
+    try:
+        data = request.json
+        api_key = data.get('api_key', '').strip()
+        
+        if not api_key:
+            return jsonify({'valid': False, 'message': '请输入 DashScope API Key'})
+        
+        # 检查API Key格式
+        if not api_key.startswith('sk-'):
+            return jsonify({'valid': False, 'message': 'API Key 格式无效（应以 sk- 开头）'})
+        
+        # 检查API Key是否是占位符
+        if api_key == '<your-dashscope-api-key>':
+            return jsonify({'valid': False, 'message': '请替换占位符为真实的 API Key'})
+        
+        # 临时设置API Key到环境变量
+        os.environ['DASHSCOPE_API_KEY'] = api_key
+        
+        return jsonify({'valid': True, 'message': 'API Key 格式有效'})
+    except Exception as e:
+        print(f'Error checking API key: {e}')
+        return jsonify({'valid': False, 'message': '检查失败'}), 500
 
 
 if __name__ == '__main__':

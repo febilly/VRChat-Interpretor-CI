@@ -36,10 +36,7 @@ class DeepLAPI(BaseTranslationAPI):
         
         if not auth_key:
             raise ValueError(
-                "DeepL API Key 未设置。请通过以下方式之一设置：\n"
-                "1. 在 .env 文件中添加: DEEPL_API_KEY=your-api-key\n"
-                "2. 设置环境变量: DEEPL_API_KEY=your-api-key\n"
-                "3. 初始化时传入: DeepLAPI(api_key='your-api-key')"
+                "DeepL API Key 未设置。请在网页控制面板的 'API Keys 配置' 中填写 DeepL API Key。"
             )
         
         # 创建 DeepL 客户端（官方库会自动处理 Free/Pro 端点）

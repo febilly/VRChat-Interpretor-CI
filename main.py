@@ -57,7 +57,7 @@ else:  # 默认使用 deepl
 mic = None
 stream = None
 executor = ThreadPoolExecutor(max_workers=config.MAX_WORKERS)
-stop_event = asyncio.Event()
+stop_event = None  # 将在 main() 函数中创建，避免绑定到错误的事件循环
 recognition_active = False  # 标记识别是否正在运行
 recognition_started = False  # 标记是否已建立识别会话
 recognition_instance: Optional[SpeechRecognizer] = None  # 全局识别实例
@@ -294,11 +294,12 @@ async def audio_capture_task(recognizer: SpeechRecognizer):
 def signal_handler(sig, frame):
     print('Ctrl+C pressed, stop recognition ...')
     # 在异步环境中安全地设置停止事件
-    try:
-        loop = asyncio.get_event_loop()
-        loop.call_soon_threadsafe(stop_event.set)
-    except:
-        stop_event.set()
+    if stop_event is not None:
+        try:
+            loop = asyncio.get_event_loop()
+            loop.call_soon_threadsafe(stop_event.set)
+        except:
+            stop_event.set()
 
 
 async def stop_recognition_async(recognizer: SpeechRecognizer):
@@ -412,7 +413,10 @@ async def handle_mute_change(is_muted):
 
 async def main():
     """主异步函数"""
-    global recognition_instance, recognition_active, vocabulary_id, CURRENT_ASR_BACKEND, recognition_started, executor
+    global recognition_instance, recognition_active, vocabulary_id, CURRENT_ASR_BACKEND, recognition_started, executor, stop_event
+    
+    # 创建当前事件循环的 stop_event
+    stop_event = asyncio.Event()
     
     # 重新创建executor（如果已经shutdown）
     if executor._shutdown:
