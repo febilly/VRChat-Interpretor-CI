@@ -1,0 +1,87 @@
+name: Build and Release
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:  # 允许手动触发
+
+jobs:
+  build:
+    runs-on: windows-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.11'
+    
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        pip install pyinstaller
+    
+    - name: Build executable with PyInstaller
+      run: |
+        pyinstaller run_ui.spec
+    
+    - name: Get commit info
+      id: commit_info
+      run: |
+        $commitSha = "${{ github.sha }}".Substring(0, 7)
+        $commitMsg = git log -1 --pretty=%B
+        $timestamp = Get-Date -Format "yyyyMMdd-HHmmss"
+        echo "sha=$commitSha" >> $env:GITHUB_OUTPUT
+        echo "message=$commitMsg" >> $env:GITHUB_OUTPUT
+        echo "timestamp=$timestamp" >> $env:GITHUB_OUTPUT
+    
+    - name: Create release tag
+      id: create_tag
+      run: |
+        $tag = "v${{ steps.commit_info.outputs.timestamp }}-${{ steps.commit_info.outputs.sha }}"
+        echo "tag=$tag" >> $env:GITHUB_OUTPUT
+        git config user.name "github-actions[bot]"
+        git config user.email "github-actions[bot]@users.noreply.github.com"
+        git tag $tag
+        git push origin $tag
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    
+    - name: Create Release
+      id: create_release
+      uses: actions/create-release@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        tag_name: ${{ steps.create_tag.outputs.tag }}
+        release_name: VRChat Translator ${{ steps.create_tag.outputs.tag }}
+        body: |
+          ## 自动构建版本
+          
+          **提交信息**: ${{ steps.commit_info.outputs.message }}
+          **提交 SHA**: ${{ steps.commit_info.outputs.sha }}
+          **构建时间**: ${{ steps.commit_info.outputs.timestamp }}
+          
+        draft: false
+        prerelease: true
+    
+    - name: Upload Release Asset
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ steps.create_release.outputs.upload_url }}
+        asset_path: ./dist/VRChat_Translator_WebUI.exe
+        asset_name: VRChat_Translator_WebUI.exe
+        asset_content_type: application/octet-stream
+    
+    - name: Upload artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: VRChat_Translator_WebUI
+        path: ./dist/VRChat_Translator_WebUI.exe
+        retention-days: 30
