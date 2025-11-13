@@ -4,15 +4,19 @@
 """
 import asyncio
 import os
+import sys
 from pathlib import Path
 from fast_langdetect import LangDetectConfig, LangDetector
 from language_detectors.base_language_detector import BaseLanguageDetector
 
+# 添加父目录到路径
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from resource_path import get_user_data_path, ensure_dir
 
-# 模型装在./models目录下
-MODEL_DIR = "./models"
+# 模型装在用户数据目录的models文件夹下（可写）
+MODEL_DIR = get_user_data_path("models")
 # 确保模型目录存在
-Path(MODEL_DIR).mkdir(parents=True, exist_ok=True)
+ensure_dir(MODEL_DIR)
 # 配置 fast-langdetect 使用的模型目录
 # config = LangDetectConfig(cache_dir=MODEL_DIR, model="full")
 config = LangDetectConfig(cache_dir=MODEL_DIR, model="lite")

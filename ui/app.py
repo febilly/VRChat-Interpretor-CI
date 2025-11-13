@@ -15,8 +15,15 @@ import os
 # 添加父目录到路径以导入config和main
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 import config
+from resource_path import get_resource_path
 
-app = Flask(__name__)
+# 配置Flask使用正确的模板和静态文件路径
+template_folder = get_resource_path('ui/templates')
+static_folder = get_resource_path('ui/static')
+
+app = Flask(__name__, 
+            template_folder=template_folder,
+            static_folder=static_folder)
 CORS(app)
 
 # 禁用Flask的请求日志

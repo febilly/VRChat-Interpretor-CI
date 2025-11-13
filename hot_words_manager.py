@@ -7,6 +7,7 @@ from typing import List, Dict, Optional
 from pathlib import Path
 from dashscope.audio.asr import VocabularyService
 import logging
+from resource_path import get_resource_path, get_user_data_path, ensure_dir
 
 logger = logging.getLogger(__name__)
 
@@ -134,11 +135,12 @@ class HotWordsManager:
         Returns:
             合并后的热词列表
         """
-        if base_dir is None:
-            # 获取当前脚本所在目录
-            base_dir = os.path.dirname(os.path.abspath(__file__))
-            hot_words_dir = os.path.join(base_dir, self.HOT_WORDS_DIR)
-            hot_words_private_dir = os.path.join(base_dir, self.HOT_WORDS_PRIVATE_DIR)
+        # 使用资源路径管理函数获取路径
+        hot_words_dir = get_resource_path(self.HOT_WORDS_DIR)
+        hot_words_private_dir = get_user_data_path(self.HOT_WORDS_PRIVATE_DIR)
+        
+        # 确保私人热词目录存在
+        ensure_dir(hot_words_private_dir)
 
         all_hot_words = []
         

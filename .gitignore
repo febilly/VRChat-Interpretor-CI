@@ -18,3 +18,10 @@ hot_words_private/*.txt
 temp/
 
 tests/
+
+# PyInstaller build files
+build/
+dist/
+*.spec.bak
+*.exe
+*.app
