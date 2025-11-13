@@ -58,7 +58,7 @@ jobs:
           
           ### 使用方法
           
-          1. 下载 `VRChat_Translator_WebUI.exe`
+          1. 下载 `Yakutan.exe`
           2. 双击运行
           3. 在浏览器打开 `http://localhost:5001`
           4. 在 Web UI 中配置 API Keys
@@ -67,7 +67,7 @@ jobs:
           
           - 首次运行可能需要下载语言检测模型
           - 私人热词请放在可执行文件同目录的 `hot_words_private` 文件夹
-        files: ./dist/VRChat_Translator_WebUI.exe
+        files: ./dist/Yakutan.exe
         draft: false
         prerelease: true
       env:
@@ -76,6 +76,6 @@ jobs:
     - name: Upload artifact
       uses: actions/upload-artifact@v4
       with:
-        name: VRChat_Translator_WebUI
-        path: ./dist/VRChat_Translator_WebUI.exe
+        name: Yakutan
+        path: ./dist/Yakutan.exe
         retention-days: 30
