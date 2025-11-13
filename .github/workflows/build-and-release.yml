@@ -55,18 +55,6 @@ jobs:
           **提交信息**: ${{ steps.commit_info.outputs.message }}
           **提交 SHA**: ${{ steps.commit_info.outputs.sha }}
           **构建时间**: ${{ steps.commit_info.outputs.timestamp }}
-          
-          ### 使用方法
-          
-          1. 下载 `Yakutan.exe`
-          2. 双击运行
-          3. 在浏览器打开 `http://localhost:5001`
-          4. 在 Web UI 中配置 API Keys
-          
-          ### 注意事项
-          
-          - 首次运行可能需要下载语言检测模型
-          - 私人热词请放在可执行文件同目录的 `hot_words_private` 文件夹
         files: ./dist/Yakutan.exe
         draft: false
         prerelease: true
