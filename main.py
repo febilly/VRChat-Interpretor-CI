@@ -412,7 +412,12 @@ async def handle_mute_change(is_muted):
 
 async def main():
     """主异步函数"""
-    global recognition_instance, recognition_active, vocabulary_id, CURRENT_ASR_BACKEND, recognition_started
+    global recognition_instance, recognition_active, vocabulary_id, CURRENT_ASR_BACKEND, recognition_started, executor
+    
+    # 重新创建executor（如果已经shutdown）
+    if executor._shutdown:
+        executor = ThreadPoolExecutor(max_workers=config.MAX_WORKERS)
+    
     vocabulary_id = None
     corpus_text: Optional[str] = None
 

@@ -126,6 +126,7 @@ async function saveConfig(autoSave = false) {
                 fallback_language: document.getElementById('fallback-language').value || null,
                 api_type: document.getElementById('translation-api-type').value,
                 source_language: document.getElementById('source-language').value,
+                show_partial_results: false,  // 默认不显示部分结果
             },
             mic_control: {
                 enable_mic_control: document.getElementById('enable-mic-control').checked,
