@@ -2,7 +2,7 @@
 
 更适合中国 [~~计科~~](#局限性) 宝宝体质的 VRChat 语音翻译器（翻译你自己的声音）
 
-<div style="text-align: center;">
+<div align="center">
     <img src="images/screenshot.png" alt="A Screenshot of the WebUI of Yakutan" style="max-width: 100%; width: 512px; height: auto;">
 </div>
 
