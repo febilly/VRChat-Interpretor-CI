@@ -48,7 +48,7 @@ jobs:
       uses: softprops/action-gh-release@v1
       with:
         tag_name: ${{ steps.commit_info.outputs.tag }}
-        name: VRChat Translator ${{ steps.commit_info.outputs.tag }}
+        name: Yakutan ${{ steps.commit_info.outputs.tag }}
         body: |
           ## 自动构建版本
           
