@@ -107,6 +107,7 @@ function loadConfigFromLocalStorage() {
                 document.getElementById('translation-api-type').value = config.translation.api_type || 'deepl';
                 document.getElementById('source-language').value = config.translation.source_language || 'auto';
                 document.getElementById('show-partial-results').checked = config.translation.show_partial_results ?? false;
+                document.getElementById('enable-reverse-translation').checked = config.translation.enable_reverse_translation ?? true;
             }
             
             if (config.mic_control) {
@@ -153,6 +154,7 @@ function loadDefaultConfig() {
     document.getElementById('translation-api-type').value = 'deepl';
     document.getElementById('source-language').value = 'auto';
     document.getElementById('show-partial-results').checked = false;
+    document.getElementById('enable-reverse-translation').checked = true;
     
     // 麦克风控制
     document.getElementById('enable-mic-control').checked = true;
@@ -222,6 +224,7 @@ function saveConfigToLocalStorage() {
                 api_type: document.getElementById('translation-api-type').value,
                 source_language: document.getElementById('source-language').value,
                 show_partial_results: document.getElementById('show-partial-results').checked,
+                enable_reverse_translation: document.getElementById('enable-reverse-translation').checked,
             },
             mic_control: {
                 enable_mic_control: document.getElementById('enable-mic-control').checked,

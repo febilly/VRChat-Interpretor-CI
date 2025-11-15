@@ -86,7 +86,7 @@ language_detector = LanguageDetector()
 # ================================
 
 
-def validate_translation(translated_text, source_language, target_language):
+def reverse_translation(translated_text, source_language, target_language):
     """
     对翻译结果进行反向翻译，从目标语言翻译回原始语言
     
@@ -197,8 +197,8 @@ class VRChatRecognitionCallback(SpeechRecognitionCallback):
         else:
             print('[OSC] Warning: Event loop not set, cannot send OSC message.')
 
-        if is_translated:
-            validate_translation(translated_text, actual_target, normalized_source)
+        if is_translated and config.ENABLE_REVERSE_TRANSLATION:
+            reverse_translation(translated_text, actual_target, normalized_source)
 
 
 async def init_audio_stream():

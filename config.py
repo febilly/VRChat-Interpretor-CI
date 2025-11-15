@@ -68,6 +68,10 @@ OPENROUTER_TRANSLATION_MAX_RETRIES = 3
 ENABLE_TRANSLATION = True  # True: 识别后翻译文本
                            # False: 直接发送识别结果，不翻译
 
+# 是否启用反向翻译功能
+ENABLE_REVERSE_TRANSLATION = True  # True: 翻译后再反向翻译回源语言
+                                    # False: 不进行反向翻译
+
 # 翻译上下文前缀
 CONTEXT_PREFIX = "This is an audio transcription of a conversation within the online multiplayer social game VRChat:"
 

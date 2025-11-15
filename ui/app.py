@@ -62,6 +62,7 @@ def get_config_dict():
             'fallback_language': config.FALLBACK_LANGUAGE,
             'api_type': config.TRANSLATION_API_TYPE,
             'show_partial_results': config.SHOW_PARTIAL_RESULTS,
+            'enable_reverse_translation': config.ENABLE_REVERSE_TRANSLATION,
         },
         # 麦克风控制配置
         'mic_control': {
@@ -116,6 +117,8 @@ def update_config(config_data):
                 config.TRANSLATION_API_TYPE = trans['api_type']
             if 'show_partial_results' in trans:
                 config.SHOW_PARTIAL_RESULTS = trans['show_partial_results']
+            if 'enable_reverse_translation' in trans:
+                config.ENABLE_REVERSE_TRANSLATION = trans['enable_reverse_translation']
         
         # 更新麦克风控制配置
         if 'mic_control' in config_data:
@@ -303,10 +306,11 @@ def get_defaults():
         'translation': {
             'enable_translation': True,
             'source_language': 'auto',
-            'target_language': 'zh',
+            'target_language': 'ja',
             'fallback_language': 'en',
             'api_type': 'deepl',
             'show_partial_results': False,
+            'enable_reverse_translation': True,
         },
         'mic_control': {
             'enable_mic_control': True,

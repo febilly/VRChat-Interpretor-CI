@@ -17,6 +17,9 @@
         </header>
 
         <main>
+            <!-- 状态消息 - 跨两栏 -->
+            <!-- <div id="message" class="message" style="grid-column: 1 / -1;"></div> -->
+
             <!-- 左栏 -->
             <div class="column-left">
                 <!-- 服务控制区域 -->
@@ -135,12 +138,25 @@
                             </select>
                             <small id="translation-api-warning" class="form-text" style="color: #e74c3c; display: none;"></small>
                         </div>
+                        
+                        <div class="form-group">
+                            <label class="switch-label">
+                                <span>启用反向翻译</span>
+                                <label class="switch">
+                                    <input type="checkbox" id="enable-reverse-translation" onchange="onSettingChange()">
+                                    <span class="slider"></span>
+                                </label>
+                            </label>
+                            <small class="form-text">总是使用 Google Dictionary API，请注意网络连通性</small>
+                        </div>
                     </div>
                 </section>
             </div>
 
             <!-- 右栏 -->
             <div class="column-right">
+                <div id="message" class="message"></div>
+
                 <!-- API Keys配置 -->
                 <section class="card">
                     <div class="collapsible-header" onclick="toggleCollapsible('api-keys')">
@@ -304,9 +320,6 @@
                     </div>
                 </section>
             </div>
-
-            <!-- 状态消息 - 跨两栏 -->
-            <div id="message" class="message" style="grid-column: 1 / -1;"></div>
         </main>
 
         <footer>
