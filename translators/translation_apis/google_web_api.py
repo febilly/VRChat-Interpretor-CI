@@ -6,6 +6,7 @@ import asyncio
 from typing import Optional
 from googletrans import Translator as GoogleWebTranslatorAPI
 from .base_translation_api import BaseTranslationAPI
+from proxy_detector import detect_system_proxy
 
 
 class GoogleWebAPI(BaseTranslationAPI):
@@ -16,7 +17,14 @@ class GoogleWebAPI(BaseTranslationAPI):
     
     def __init__(self):
         """初始化 API"""
-        self.google_translator = GoogleWebTranslatorAPI()
+        # 检测系统代理
+        proxies = detect_system_proxy()
+        
+        if proxies:
+            # googletrans 库支持代理参数
+            self.google_translator = GoogleWebTranslatorAPI(proxies=proxies)
+        else:
+            self.google_translator = GoogleWebTranslatorAPI()
     
     async def _translate_async(self, text: str, source_language: str, target_language: str) -> str:
         """
