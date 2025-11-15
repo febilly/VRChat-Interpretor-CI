@@ -12,6 +12,7 @@ from dotenv import load_dotenv
 from osc_manager import osc_manager
 from translators.context_aware_translator import ContextAwareTranslator
 from hot_words_manager import HotWordsManager
+from proxy_detector import detect_system_proxy, print_proxy_info
 
 from translators.translation_apis.google_dictionary_api import GoogleDictionaryAPI as BackwardsTranslationAPI
 from speech_recognizers.base_speech_recognizer import (
@@ -425,6 +426,10 @@ async def main():
     vocabulary_id = None
     corpus_text: Optional[str] = None
 
+    # 检测并应用系统代理设置
+    system_proxies = detect_system_proxy()
+    print_proxy_info(system_proxies)
+    
     # 初始化 DashScope API Key
     init_dashscope_api_key()
     print('Initializing ...')

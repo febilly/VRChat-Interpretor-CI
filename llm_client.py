@@ -8,6 +8,7 @@ import json
 import os
 from typing import Optional, List, Dict, Any
 import threading
+from proxy_detector import detect_system_proxy
 
 
 class OpenRouterClient:
@@ -52,6 +53,14 @@ class OpenRouterClient:
         """获取或创建 HTTP 长连接会话"""
         if self._session is None or self._session.closed:
             session_timeout = aiohttp.ClientTimeout(total=timeout)
+            
+            # 检测系统代理并配置
+            proxies = detect_system_proxy()
+            proxy_url = None
+            if proxies:
+                # aiohttp 只需要一个代理 URL，优先使用 https 代理
+                proxy_url = proxies.get('https') or proxies.get('http')
+            
             self._session = aiohttp.ClientSession(timeout=session_timeout)
         return self._session
     
@@ -129,10 +138,17 @@ class OpenRouterClient:
             try:
                 session = await self._get_session(timeout)
                 
+                # 获取代理设置
+                proxies = detect_system_proxy()
+                proxy_url = None
+                if proxies:
+                    proxy_url = proxies.get('https') or proxies.get('http')
+                
                 async with session.post(
                     self.base_url, 
                     json=payload, 
-                    headers=headers
+                    headers=headers,
+                    proxy=proxy_url
                 ) as response:
                     if response.status == 200:
                         response_body = await response.text()
