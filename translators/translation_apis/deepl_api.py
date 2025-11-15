@@ -6,6 +6,7 @@ DeepL API 翻译实现
 import os
 from typing import Optional
 from .base_translation_api import BaseTranslationAPI
+from proxy_detector import detect_system_proxy
 
 try:
     import deepl
@@ -39,8 +40,18 @@ class DeepLAPI(BaseTranslationAPI):
                 "DeepL API Key 未设置。请在网页控制面板的 'API Keys 配置' 中填写 DeepL API Key。"
             )
         
+        # 检测系统代理
+        proxies = detect_system_proxy()
+        proxy_config = None
+        if proxies:
+            # DeepL 库使用标准的 proxy 字典格式
+            proxy_config = proxies
+        
         # 创建 DeepL 客户端（官方库会自动处理 Free/Pro 端点）
-        self.client = deepl.DeepLClient(auth_key)
+        if proxy_config:
+            self.client = deepl.DeepLClient(auth_key, proxy=proxy_config)
+        else:
+            self.client = deepl.DeepLClient(auth_key)
                 
         # 提前进行一次翻译，以建立长连接
         self.translate("你好", source_language="auto", target_language="en")

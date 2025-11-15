@@ -8,6 +8,7 @@ import urllib.parse
 import json
 from typing import Optional
 from .base_translation_api import BaseTranslationAPI
+from proxy_detector import detect_system_proxy
 
 
 class GoogleDictionaryAPI(BaseTranslationAPI):
@@ -90,8 +91,14 @@ class GoogleDictionaryAPI(BaseTranslationAPI):
                 # 获取长连接会话
                 session = await self._get_session()
                 
+                # 获取代理设置
+                proxies = detect_system_proxy()
+                proxy_url = None
+                if proxies:
+                    proxy_url = proxies.get('https') or proxies.get('http')
+                
                 # 发送请求（使用长连接）
-                async with session.get(url, headers=headers) as response:
+                async with session.get(url, headers=headers, proxy=proxy_url) as response:
                     if response.status == 200:
                         response_body = await response.text()
                         
